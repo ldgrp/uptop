@@ -21,6 +21,9 @@ module Up.API (
     , retrieveTransaction
     , listTransactionsByAccount
     , listTransactionsByAccount_
+    -- * Utility API
+    , ping
+    
     , unpaginate
     ) where
 
@@ -31,6 +34,7 @@ import Servant.Client
 import Up.Model.Account
 import Up.Model.Category
 import Up.Model.Paginated
+import Up.Model.Utility
 import Up.Model.Tag
 import Up.Model.Transaction
 
@@ -68,14 +72,14 @@ listAccounts :<|> retrieveAccount = client (Proxy :: Proxy AccountsAPI)
 -- * Categories API
 type CategoriesAPI =
   -- listCategories
-       "categories" :> QueryParam "filter[parent]" Int       
+       "categories" :> QueryParam "filter[parent]" CategoryId
                     :> Get '[JSON] Categories
   -- retrieveCategory
   :<|> "categories" :> Capture "id" T.Text       
                     :> Get '[JSON] Category
 
 -- | Retrieve a list of all categories and their ancestry.
-listCategories :: Maybe Int 
+listCategories :: Maybe CategoryId 
                -> ClientM Categories
 
 -- | Retrieve a specific category by providing its unique identifier.
@@ -206,6 +210,16 @@ listTransactions
   :<|> listTransactionsByAccount 
   = client (Proxy :: Proxy TransactionsAPI)
 
+-- * Utlity API
+type UtilityAPI = 
+  --  Ping
+  "util" :> "ping" :> Get '[JSON] Ping
+
+-- | Make a basic ping request to the API. 
+-- | This is useful to verify that authentication is functioning correctly.
+ping :: ClientM Ping
+
+ping = client (Proxy :: Proxy UtilityAPI)
 
 data Cursor a = Start | Next a | End deriving Show
 

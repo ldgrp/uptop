@@ -21,8 +21,9 @@ data Category = Category
   , categoryChildren :: Maybe [CategoryId]
   } deriving (Eq, Show, Generic)
 
-data Categories = Categories [Category]
-  deriving (Eq, Show, Generic)
+data Categories = Categories { 
+    getCategories :: [Category] 
+  } deriving (Eq, Show, Generic)
 
 instance ToJSON Categories where
   toJSON = genericToJSON $ aesonPrefix camelCase
