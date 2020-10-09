@@ -9,11 +9,22 @@ import GHC.Generics
 
 import qualified Data.Text as T
 
-
+type TagId = T.Text
 data Tag = Tag
-    { tagId :: T.Text
+    { tagId :: TagId
     , tagTransaction :: Maybe T.Text
     } deriving (Eq, Show, Generic)
+
+data Tags = Tags [Tag]
+    deriving (Eq, Show, Generic)
+
+instance ToJSON Tags where
+    toJSON = genericToJSON $ aesonPrefix camelCase
+
+instance FromJSON Tags where
+  parseJSON = withObject "tags" $ \o -> do
+    t <- o .: "data"
+    pure (Tags t)
 
 instance ToJSON Tag where
     toJSON = genericToJSON $ aesonPrefix camelCase

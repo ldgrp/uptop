@@ -5,17 +5,18 @@ module Up.Model.Account where
 
 import Data.Aeson
 import Data.Aeson.Casing (aesonPrefix, camelCase)
-import GHC.Generics
-import Up.Model.MoneyObject
+import GHC.Generics ( Generic )
+import Up.Model.MoneyObject ( MoneyObject )
 
 import qualified Data.Char as C
 import qualified Data.Text as T
 
 
+type AccountId = T.Text
 -- | A (flattened) Up Account
 data Account = Account 
     { -- | The unique identifier for this account.
-      accountId :: T.Text
+      accountId :: AccountId
       -- | The name associated with the account in the Up application.
     , accountDisplayName :: T.Text
       -- | The bank account type of this account. See @AccountType@.
@@ -31,7 +32,7 @@ data Account = Account
     } deriving (Eq, Show, Generic)
 
 instance ToJSON Account where
-    toJSON = genericToJSON $  aesonPrefix camelCase
+    toJSON = genericToJSON $ aesonPrefix camelCase
 
 instance FromJSON Account where
     parseJSON = withObject "account" $ \o ->

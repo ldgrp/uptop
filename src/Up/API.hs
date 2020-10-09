@@ -1,39 +1,62 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Up.API ( 
     -- * Accounts API
       listAccounts
+    , listAccounts_
     , retrieveAccount
+    -- * Categories API
+    , listCategories
+    , retrieveCategory
     -- * Tags API
     , listTags
+    , listTags_
     , addTags
     , removeTags
     -- * Transactions API
     , listTransactions
+    , listTransactions_
+    , retrieveTransaction
     , listTransactionsByAccount
+    , listTransactionsByAccount_
+    , unpaginate
     ) where
 
+import Control.Arrow (second)
 import Data.Proxy
 import Servant.API
 import Servant.Client
 import Up.Model.Account
+import Up.Model.Category
 import Up.Model.Paginated
 import Up.Model.Tag
 import Up.Model.Transaction
 
 import qualified Data.Text as T
 
-
 -- * Accounts API
 type AccountsAPI = 
-         "accounts" :> QueryParam "page[size]" Int :> Get '[JSON] (Paginated Account)
-    :<|> "accounts" :> Capture "id" T.Text         :> Get '[JSON] Account
+       "accounts" :> QueryParam "page[size]" Int 
+                  :> QueryParam "page[before]" AccountId
+                  :> QueryParam "page[after]" AccountId
+                  :> Get '[JSON] (Paginated Account)
+  :<|> "accounts" :> Capture "id" T.Text         
+                  :> Get '[JSON] Account
 
 -- | Retrieve a paginated list of all accounts for the currently authenticated user. 
---   The returned list is paginated and can be scrolled by following the prev and next links where present.
-listAccounts :: Maybe Int
+listAccounts :: Maybe Int         -- ^ page[size]
+             -> Maybe AccountId   -- ^ page[before]
+             -> Maybe AccountId   -- ^ page[after]
              -> ClientM (Paginated Account)
+
+-- | Retrieve an unfolded list of all accounts for the currently authenticated user. 
+listAccounts_ :: Maybe Int         -- ^ page[size]
+              -> ClientM [Account]
+listAccounts_ size = unpaginate f g >>= pure . concat
+  where f = listAccounts size Nothing Nothing
+        g after = listAccounts size Nothing after
 
 -- | Retrieve a specific account by providing its unique identifier.
 retrieveAccount :: T.Text 
@@ -42,25 +65,58 @@ retrieveAccount :: T.Text
 listAccounts :<|> retrieveAccount = client (Proxy :: Proxy AccountsAPI)
 
 
+-- * Categories API
+type CategoriesAPI =
+  -- listCategories
+       "categories" :> QueryParam "filter[parent]" Int       
+                    :> Get '[JSON] Categories
+  -- retrieveCategory
+  :<|> "categories" :> Capture "id" T.Text       
+                    :> Get '[JSON] Category
+
+-- | Retrieve a list of all categories and their ancestry.
+listCategories :: Maybe Int 
+               -> ClientM Categories
+
+-- | Retrieve a specific category by providing its unique identifier.
+retrieveCategory :: T.Text 
+                 -> ClientM Category
+
+listCategories :<|> retrieveCategory = client (Proxy :: Proxy CategoriesAPI)
+
+
 -- * Tags API
 type TagsAPI =
-         "tags"         :> QueryParam "page[size]" Int :> Get '[JSON] (Paginated Tag)
-    :<|> "transactions" :> Capture "transactionId" T.Text :> "relationships" 
-              :> "tags" :> ReqBody '[JSON] TagInput :> Post '[JSON] ()
-    :<|> "transactions" :> Capture "transactionId" T.Text :> "relationships" 
-              :> "tags" :> ReqBody '[JSON] TagInput :> Delete '[JSON] ()
+       "tags"         :> QueryParam "page[size]" Int 
+                      :> QueryParam "page[before]" AccountId
+                      :> QueryParam "page[after]" AccountId
+                      :> Get '[JSON] (Paginated Tag)
+  :<|> "transactions" :> Capture "transactionId" T.Text 
+                      :> "relationships" 
+                      :> "tags" 
+                      :> ReqBody '[JSON] TagInput 
+                      :> Post '[JSON] ()
+  :<|> "transactions" :> Capture "transactionId" T.Text 
+                      :> "relationships" 
+                      :> "tags" 
+                      :> ReqBody '[JSON] TagInput 
+                      :> Delete '[JSON] ()
 
--- | Retrieve a list of all tags currently in use. The returned list is paginated and can be 
---   scrolled by following the next and prev links where present. Results are ordered 
---   lexicographically. The transactions relationship for each tag exposes a link to 
---   get the transactions with the given tag.
-listTags :: Maybe Int
+-- | Retrieve a paginated list of all tags currently in use. 
+listTags :: Maybe Int     -- ^ page[size]
+         -> Maybe TagId   -- ^ page[before]
+         -> Maybe TagId   -- ^ page[after]
          -> ClientM (Paginated Tag)
 
--- | Associates one or more tags with a specific transaction. No more than 6 tags may be present 
---   on any single transaction. Duplicate tags are silently ignored. An HTTP 204 is returned on 
---   success. The associated tags, along with this request URL, are also exposed via the tags 
---   relationship on the transaction resource returned from /transactions/{id}.
+-- | Retrieve an unfolded list of all tags currently in use. 
+listTags_ :: Maybe Int     -- ^ page[size]
+          -> ClientM [Tag]
+listTags_ size = unpaginate f g >>= pure . concat
+  where f = listTags size Nothing Nothing
+        g after = listTags size Nothing after
+
+-- | Associates one or more tags with a specific transaction. No more than 6 tags 
+--   may be present on any single transaction. Duplicate tags are silently ignored.
 addTags :: T.Text
         -> TagInput
         -> ClientM ()
@@ -71,46 +127,112 @@ removeTags :: T.Text
            -> TagInput
            -> ClientM ()
 
-listTags :<|> addTags :<|> removeTags = client (Proxy :: Proxy TagsAPI)
+listTags 
+  :<|> addTags 
+  :<|> removeTags 
+  = client (Proxy :: Proxy TagsAPI)
 
 
 -- * Transactions API
 type TransactionsAPI =
-         "transactions" :> QueryParam "page[size]" Int       :> QueryParam "filter[since]" T.Text
-                        :> QueryParam "filter[until]" T.Text :> QueryParam "filter[tag]" T.Text 
-                        :> Get '[JSON] (Paginated Transaction)
-    :<|> "transactions" :> Capture "transactionId" T.Text 
-                        :> Get '[JSON] (Transaction)
-    :<|> "accounts" :> Capture "accountID" T.Text :> "transactions" 
-                        :> QueryParam "page[size]" Int       :> QueryParam "filter[since]" T.Text
-                        :> QueryParam "filter[until]" T.Text :> QueryParam "filter[tag]" T.Text 
-                        :> Get '[JSON] (Paginated Transaction)
+  -- listTransactions
+       "transactions" :> QueryParam "page[size]" Int       
+                      :> QueryParam "page[before]" TransactionId
+                      :> QueryParam "page[after]" TransactionId
+                      :> QueryParam "filter[since]" T.Text
+                      :> QueryParam "filter[until]" T.Text 
+                      :> QueryParam "filter[tag]" T.Text 
+                      :> Get '[JSON] (Paginated Transaction)
+  -- retrieveTransaction
+  :<|> "transactions" :> Capture "transactionId" TransactionId
+                      :> Get '[JSON] (Transaction)
+  -- listTransactionsByAccount
+  :<|> "accounts"     :> Capture "accountID" AccountId
+                      :> "transactions" 
+                      :> QueryParam "page[size]" Int       
+                      :> QueryParam "page[before]" TransactionId
+                      :> QueryParam "page[after]" TransactionId
+                      :> QueryParam "filter[since]" T.Text
+                      :> QueryParam "filter[until]" T.Text 
+                      :> QueryParam "filter[tag]" T.Text 
+                      :> Get '[JSON] (Paginated Transaction)
 
--- | Retrieve a list of all transactions across all accounts for the currently authenticated user. 
---   The returned list is paginated and can be scrolled by following the next and prev links where 
---   present. To narrow the results to a specific date range pass one or both of filter[since] 
---   and filter[until] in the query string. These filter parameters should not be used for 
---   pagination. Results are ordered newest first to oldest last.
-listTransactions :: Maybe Int
-                 -> Maybe T.Text
-                 -> Maybe T.Text
-                 -> Maybe T.Text
+-- | Retrieve a paginated list of all transactions across all accounts for the currently authenticated user. 
+listTransactions :: Maybe Int                -- ^ page[size]
+                 -> Maybe TransactionId      -- ^ page[before]
+                 -> Maybe TransactionId      -- ^ page[after] 
+                 -> Maybe T.Text             -- ^ filter[since]
+                 -> Maybe T.Text             -- ^ filter[until]
+                 -> Maybe T.Text             -- ^ filter[tag]
                  -> ClientM (Paginated Transaction)
 
+-- | Retrieve an unfolded list of all transactions across all accounts for the currently authenticated user. 
+listTransactions_ :: Maybe Int                -- ^ page[size]
+                  -> Maybe T.Text             -- ^ filter[since]
+                  -> Maybe T.Text             -- ^ filter[until]
+                  -> Maybe T.Text             -- ^ filter[tag]
+                  -> ClientM [Transaction]
+listTransactions_ size fsince funtil ftag = unpaginate f g >>= pure . concat
+  where f = listTransactions size Nothing Nothing fsince funtil ftag
+        g after = listTransactions size Nothing after Nothing Nothing Nothing
+
 -- | Retrieve a specific transaction by providing its unique identifier.
-retrieveTransaction :: T.Text
+retrieveTransaction :: TransactionId         -- ^ transactionId
                     -> ClientM (Transaction)
 
--- | Retrieve a list of all transactions for a specific account. The returned list is paginated 
---   and can be scrolled by following the next and prev links where present. To narrow the results 
---   to a specific date range pass one or both of filter[since] and filter[until] in the query 
---   string. These filter parameters should not be used for pagination. 
---   Results are ordered newest first to oldest last.
-listTransactionsByAccount :: T.Text
-                          -> Maybe Int
-                          -> Maybe T.Text
-                          -> Maybe T.Text
-                          -> Maybe T.Text
+-- | Retrieve a list of all transactions for a specific account.
+listTransactionsByAccount :: AccountId       -- ^ accountId
+                          -> Maybe Int       -- ^ page[size]
+                          -> Maybe AccountId -- ^ page[before]
+                          -> Maybe AccountId -- ^ page[after]
+                          -> Maybe T.Text    -- ^ filter[since]
+                          -> Maybe T.Text    -- ^ filter[until]
+                          -> Maybe T.Text    -- ^ filter[tag]
                           -> ClientM (Paginated Transaction)
 
-listTransactions :<|> retrieveTransaction :<|> listTransactionsByAccount = client (Proxy :: Proxy TransactionsAPI)
+-- | Retrieve an unfolded list of all transactions for a specific account.
+listTransactionsByAccount_ :: AccountId      -- ^ accountId
+                           -> Maybe Int      -- ^ page[size]
+                           -> Maybe T.Text   -- ^ filter[since]
+                           -> Maybe T.Text   -- ^ filter[until]
+                           -> Maybe T.Text   -- ^ filter[tag]
+                           -> ClientM [Transaction]
+listTransactionsByAccount_ aid size fsince funtil ftag = unpaginate f g >>= pure . concat
+  where f = listTransactionsByAccount aid size Nothing Nothing fsince funtil ftag
+        g after = listTransactionsByAccount aid size Nothing after Nothing Nothing Nothing
+
+listTransactions 
+  :<|> retrieveTransaction 
+  :<|> listTransactionsByAccount 
+  = client (Proxy :: Proxy TransactionsAPI)
+
+
+data Cursor a = Start | Next a | End deriving Show
+
+maybeToCursor :: Maybe a -> Cursor a
+maybeToCursor (Just x) = Next x
+maybeToCursor Nothing = End
+
+unfoldrM :: Show b => Monad m => (b -> m (Maybe (a, b))) -> b -> m [a]
+unfoldrM f b = do
+  r <- f b
+  case r of
+    Just (a, b') -> fmap (a :) (unfoldrM f b')
+    Nothing -> return []
+
+wrapped :: Applicative m => m (Maybe (a, Maybe b))
+        -> (Maybe b -> m (Maybe (a, Maybe b)))
+        -> Cursor b 
+        -> m (Maybe (a, Cursor b))
+wrapped f _g Start = fmap (second maybeToCursor) <$> f
+wrapped _f g (Next b) = fmap (second maybeToCursor) <$> g (Just b)
+wrapped _f _g End = pure Nothing
+
+unpaginate :: Monad m
+           => m (Paginated a)
+           -> (Maybe T.Text -> m (Paginated a))
+           -> m [[a]]
+unpaginate f g = unfoldrM (wrapped f' g') Start
+  where 
+    f' = f >>= \p -> return $ Just (paginatedData p, paginatedNext p)
+    g' b = g b >>= \p -> return $ Just (paginatedData p, paginatedNext p)

@@ -10,7 +10,6 @@ import GHC.Generics
 
 import qualified Data.Text as T
 
-
 data MoneyObject = MoneyObject
     { -- | The ISO 4217 currency code.
       moCurrencyCode :: T.Text
@@ -18,7 +17,7 @@ data MoneyObject = MoneyObject
     , moValue :: T.Text
       -- | The amount of money in the smallest denomination for the currency, as a 64-bit integer.
     , moValueInBaseUnits :: Int64
-    } deriving (Eq, Show, Generic)
+    } deriving (Eq, Generic)
 
 instance ToJSON MoneyObject where
     toJSON = genericToJSON $ aesonPrefix camelCase
@@ -26,3 +25,5 @@ instance ToJSON MoneyObject where
 instance FromJSON MoneyObject where
     parseJSON = genericParseJSON $ aesonPrefix camelCase
 
+instance Show MoneyObject where
+    show mo = T.unpack $ T.intercalate " " [moCurrencyCode mo, moValue mo]

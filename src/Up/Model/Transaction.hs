@@ -6,19 +6,23 @@ module Up.Model.Transaction where
 import Data.Aeson
 import Data.Aeson.Casing (aesonPrefix, camelCase)
 import GHC.Generics
+
+import Up.Model.Category
 import Up.Model.MoneyObject
+import Up.Model.Tag
 
 import qualified Data.Char as C
 import qualified Data.Text as T
 
 
+type TransactionId = T.Text
+
 -- TODO: Relationships
 -- | A (flattened) Up Transaction
 data Transaction = Transaction 
-    { -- | The type of this resource: transactions
-      transactionType :: T.Text
+    { 
       -- | The unique identifier for this transaction.
-    , transactionId :: T.Text
+      transactionId :: TransactionId
       -- | The current processing status of this transaction, 
       --   according to whether or not this transaction has settled or is still held.
     , transactionStatus :: TransactionStatus
@@ -48,19 +52,25 @@ data Transaction = Transaction
     , transactionSettledAt :: Maybe T.Text
       -- | The date-time at which this transaction was first encountered.
     , transactionCreatedAt :: T.Text
+    , transactionCategory :: Maybe CategoryId
+    , transactionParentCategory :: Maybe CategoryId
+    , transactionTags :: Maybe [TagId]
       -- | The canonical link to this resource within the API.
     , transactionSelf :: Maybe T.Text
     } deriving (Eq, Show, Generic)
 
 instance ToJSON Transaction where
-    toJSON = genericToJSON $ aesonPrefix camelCase
+  toJSON = genericToJSON $ aesonPrefix camelCase
 
 instance FromJSON Transaction where
-    parseJSON = withObject "transaction" $ \o ->
-        let attributes = (o .: "attributes" >>=)
-            links = (o .: "links" >>=)
-         in Transaction <$> o .: "type"
-                    <*> o .: "id"
+  parseJSON = withObject "transaction" $ \o ->
+    let attributes = (o .: "attributes" >>=)
+        links = (o .: "links" >>=)
+        relationships = (o .: "relationships" >>=)
+        category = relationships (.: "category") >>= (.:? "data") >>= mapM (.: "id")
+        parentCategory = relationships (.: "parentCategory") >>= (.:? "data") >>= mapM (.: "id")
+        tags = relationships (.: "tags") >>= (.:? "data") >>= mapM (mapM (.: "id"))
+     in Transaction <$> o .: "id"
                     <*> attributes (.: "status")
                     <*> attributes (.: "rawText")
                     <*> attributes (.: "description")
@@ -72,49 +82,52 @@ instance FromJSON Transaction where
                     <*> attributes (.: "foreignAmount")
                     <*> attributes (.: "settledAt")
                     <*> attributes (.: "createdAt")
+                    <*> category
+                    <*> parentCategory
+                    <*> tags
                     <*> links (.: "self")
 
 data TransactionStatus
-    = Held
-    | Settled
-    deriving (Eq, Show, Generic, Enum)
+  = Held
+  | Settled
+  deriving (Eq, Show, Generic, Enum)
 
 instance ToJSON TransactionStatus where
-    toJSON = genericToJSON defaultOptions { constructorTagModifier = fmap C.toUpper }
+  toJSON = genericToJSON defaultOptions { constructorTagModifier = fmap C.toUpper }
 
 instance FromJSON TransactionStatus where
-    parseJSON = genericParseJSON defaultOptions {constructorTagModifier = fmap C.toUpper}
+  parseJSON = genericParseJSON defaultOptions {constructorTagModifier = fmap C.toUpper}
 
 data HoldInfo = HoldInfo
-    { holdAmount :: MoneyObject
-    , holdForeignAmount :: Maybe MoneyObject
-    } deriving (Eq, Show, Generic)
+  { holdAmount :: MoneyObject
+  , holdForeignAmount :: Maybe MoneyObject
+  } deriving (Eq, Show, Generic)
 
 instance ToJSON HoldInfo where
-    toJSON = genericToJSON $ aesonPrefix camelCase
+  toJSON = genericToJSON $ aesonPrefix camelCase
 
 instance FromJSON HoldInfo where
-    parseJSON = genericParseJSON $ aesonPrefix camelCase
+  parseJSON = genericParseJSON $ aesonPrefix camelCase
 
 data RoundUp = RoundUp
-    { roundupAmount :: MoneyObject
-    , roundupBoostPortion :: Maybe MoneyObject
-    } deriving (Eq, Show, Generic)
+  { roundupAmount :: MoneyObject
+  , roundupBoostPortion :: Maybe MoneyObject
+  } deriving (Eq, Show, Generic)
 
 instance ToJSON RoundUp where
-    toJSON = genericToJSON $ aesonPrefix camelCase
+  toJSON = genericToJSON $ aesonPrefix camelCase
 
 instance FromJSON RoundUp where
-    parseJSON = genericParseJSON $ aesonPrefix camelCase
+  parseJSON = genericParseJSON $ aesonPrefix camelCase
 
 data Cashback = Cashback
-    { cashbackAmount :: MoneyObject
-    , description :: String
-    } deriving (Eq, Show, Generic)
+  { cashbackAmount :: MoneyObject
+  , description :: String
+  } deriving (Eq, Show, Generic)
 
 instance ToJSON Cashback where
-    toJSON = genericToJSON $ aesonPrefix camelCase
+  toJSON = genericToJSON $ aesonPrefix camelCase
 
 instance FromJSON Cashback where
-    parseJSON = genericParseJSON $ aesonPrefix camelCase
+  parseJSON = genericParseJSON $ aesonPrefix camelCase
 
