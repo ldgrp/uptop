@@ -1,49 +1,42 @@
-up-api-haskell
+up-bank-hs
 ==============
 
 A Haskell wrapper for the Up Bank API ⚡.
 
 ### Usage
 
+Check out [`src/Demo.hs`](src/Demo.hs) for an example program and [`src/Up/API.hs`](src/Up/API.hs) to see
+the implemented client functions.
+
+```bash
+$ git clone https://github.com/ldgrp/up-bank-hs.git
+$ cd up-bank-hs
+$ UP_BANK_TOKEN=up:yeah:TOKEN cabal run
+```
+
+`Demo.hs` expects an `UP_BANK_TOKEN` environemnt variable. Get your personal
+access token [here](https://api.up.com.au/getting_started).
+
+All client functions `f` which return paginated responses `ClientM (Paginated a)` 
+have an unpaginated version `f_` which will `unfold` the paginated response to a 
+list `ClientM [a]`.
+
 ```Haskell
-import Data.Aeson.Encode.Pretty
-import Network.HTTP.Client (newManager)
-import Network.HTTP.Client.TLS (tlsManagerSettings)
-import Servant.Client
-import System.Environment
-
-import qualified Data.ByteString.Lazy.Char8 as BLC
-
-import Up
-
-import Up.API
-import Up.Model.Account
-import Up.Model.Paginated
-import Up.Model.Transaction
-import Up.Model.Token
-
-
--- | Query the Up API
-query :: ClientM (Account, [Transaction])
-query = do
-    -- An account
-    account <- head <$> paginatedData <$> listAccounts Nothing
-    let aid = accountId $ account
-    -- A list of transactions from account (max 2)
-    transactions <- paginatedData <$> listTransactionsByAccount aid (Just 2) Nothing Nothing Nothing
-    pure (account, transactions)
-
 run :: IO ()
 run = do
-    -- Get the API token from the system environment variables
-    token <- Token <$> getEnv "UP_BANK_TOKEN"
-    mgr <- newManager tlsManagerSettings
-
-    -- Run the queries
-    res <- runClientM query (mkClientEnv mgr upBaseUrl) 
-        { makeClientRequest = makeUpClientRequest token}
-
-    case res of
-      Left err -> putStrLn $ show err
-      Right u -> BLC.putStrLn $ encodePretty u
+    -- Retrieve the full list of transactions across all accounts.
+    res <- query (listTransactions_ Nothing Nothing Nothing Nothing)
+    BLC.putStrLn $ encodePretty res
+      
+main :: IO ()
+main = run
 ```
+
+### Todo
+- [x] Accounts
+- [x] Categories
+- [x] Tags
+- [x] Transactions
+- [ ] Webhooks
+- [ ] Brick TUI (Work in progress)
+- [ ] CLI

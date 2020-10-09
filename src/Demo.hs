@@ -1,4 +1,4 @@
-module Demo where
+module Main where
 
 import Data.Aeson.Encode.Pretty
 import Network.HTTP.Client (newManager)
@@ -11,10 +11,6 @@ import qualified Data.ByteString.Lazy.Char8 as BLC
 import Up
 
 import Up.API
-import Up.Model.Category
-import Up.Model.Account
-import Up.Model.Paginated
-import Up.Model.Transaction
 import Up.Model.Token
 
 
@@ -28,10 +24,7 @@ query q = do
       Left err -> fail $ show err
       Right res' -> pure res'
 
-run :: IO ()
-run = do
+main :: IO ()
+main = do
     res <- query (listTransactions_ Nothing Nothing Nothing Nothing)
     BLC.putStrLn $ encodePretty res
-      
-main :: IO ()
-main = run
