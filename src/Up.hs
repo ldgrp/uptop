@@ -14,6 +14,7 @@ import Servant.Client.Core.Request (Request)
 import qualified Network.HTTP.Client as Client
 import qualified Data.ByteString.Char8 as BSC
 
+import Network.HTTP.Client.TLS (tlsManagerSettings)
 
 -- | Base URL of the Up Banking API
 upBaseUrl :: BaseUrl
@@ -24,3 +25,8 @@ makeUpClientRequest :: Token -> BaseUrl -> Request -> Client.Request
 makeUpClientRequest (Token token) = (addHeader .) . defaultMakeClientRequest
     where 
           addHeader req = req {Client.requestHeaders = ("Authorization", BSC.pack $ token) : Client.requestHeaders req}
+
+mkUpClient :: Token -> IO ClientEnv
+mkUpClient t = do
+  mgr <- Client.newManager tlsManagerSettings
+  pure (mkClientEnv mgr upBaseUrl) { makeClientRequest = makeUpClientRequest t }

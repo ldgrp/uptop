@@ -1,0 +1,8 @@
+cradle:
+  cabal:
+    - path: "./src"
+      component: "lib:up-bank-api"
+    - path: "./src"
+      component: "exe:demo"
+    - path: "./app"
+      component: "exe:uptop"

@@ -1,9 +1,20 @@
-up-bank-hs
+uptop 🙌
 ==============
 
-A Haskell wrapper for the Up Bank API ⚡.
+`uptop` is a terminal client for Up Bank ⚡ written in Haskell.
 
-### Usage
+Powered by the [Up Bank API](https://developer.up.com.au/), [brick](https://github.com/jtdaugherty/brick/) and [servant](servant.dev).
+
+![tui-screenshot](img/main.png)
+
+## Usage
+
+Start `uptop` with the `UP_BANK_TOKEN` environment variable, or choose to enter it later.
+
+![auth-tui-screenshot](img/auth.png)
+
+## API Client Usage
+
 
 Check out [`src/Demo.hs`](src/Demo.hs) for an example program and [`src/Up/API.hs`](src/Up/API.hs) to see
 the implemented client functions.

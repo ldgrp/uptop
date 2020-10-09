@@ -27,6 +27,7 @@ library
                      , Up.Model.Tag
                      , Up.Model.Token
                      , Up.Model.Transaction
+                     , Up.Model.Utility
   build-depends:       base >= 4.13 && < 4.15
                      , aeson
                      , aeson-casing
@@ -51,7 +52,7 @@ library
     -fwarn-name-shadowing
     -fwarn-incomplete-patterns
 
-executable Demo
+executable demo
   main-is: Demo.hs
   build-depends:       base >= 4.13 && < 4.15
                      , aeson
@@ -77,7 +78,7 @@ executable Demo
                      , Up.Model.Tag
                      , Up.Model.Token
                      , Up.Model.Transaction
-  default-language:    Haskell2010
+                     , Up.Model.Utility
   ghc-options:
     -Wall
     -Wcompat
@@ -88,3 +89,43 @@ executable Demo
     -fwarn-name-shadowing
     -fwarn-incomplete-patterns
 
+executable uptop
+  main-is: Main.hs
+  build-depends:       base >= 4.13 && < 4.15
+                     , aeson
+                     , aeson-casing
+                     , aeson-pretty
+                     , brick
+                     , bytestring
+                     , http-client
+                     , http-client-tls
+                     , http-types
+                     , microlens
+                     , microlens-th
+                     , unordered-containers
+                     , servant
+                     , servant-client
+                     , servant-client-core
+                     , stm
+                     , text
+                     , time
+                     , tuple
+                     , vector
+                     , vty
+                     , up-bank-api
+  default-language:    Haskell2010
+  hs-source-dirs:      app
+  other-modules:       App
+                     , Auth
+                     , Types
+                     , UI
+  ghc-options:
+    -Wall
+    -Wcompat
+    -Werror=incomplete-patterns
+    -fwarn-tabs
+    -fwarn-unused-imports
+    -fwarn-missing-signatures
+    -fwarn-name-shadowing
+    -fwarn-incomplete-patterns
+    -threaded
