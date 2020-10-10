@@ -23,8 +23,12 @@ $ ./uptop
 
 ![auth-tui-screenshot](/img/auth.png)
 
-`uptop` checks the `UP_BANK_TOKEN` environment variable and uses it to populate
-the initial auth screen.
+If available, `uptop` will use the `UP_BANK_TOKEN` environment variable to
+populate the initial auth screen.
+
+### Windows
+
+`uptop` depends on `vty` which does **not** support Windows.
 
 ### Build from source
 If you do not have `cabal`, I highly recommend [`ghcup`][ghcup] or 
