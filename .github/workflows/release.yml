@@ -1,0 +1,108 @@
+# based on https://vrom911.github.io/blog/github-actions-releases
+name: Uptop CI
+
+on:
+  push:
+    tags:
+      - "v*"
+jobs:
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: false
+      - name: Output Release URL File
+        run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
+      - name: Save Release URL File for publish
+        uses: actions/upload-artifact@v1
+        with:
+          name: release_url
+          path: release_url.txt
+  build_artifact:
+    needs: [create_release]
+    name: ${{ matrix.os }}/GHC ${{ matrix.ghc }}/${{ github.ref }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+        ghc: ["8.10.1"]
+        cabal: ["3.2"]
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set tag name
+        uses: olegtarasov/get-tag@v2
+        id: tag
+        with:
+          tagRegex: "v(.*)"
+          tagRegexGroup: 1
+
+      - name: Setup Haskell
+        uses: actions/setup-haskell@v1.1.1
+        id: setup-haskell-cabal
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: ${{ matrix.cabal }}
+
+      - name: Freeze
+        run: |
+          cabal freeze
+      - name: Cache ~/.cabal/store
+        uses: actions/cache@v1
+        with:
+          path: ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
+
+      - name: Build binary
+        run: |
+          mkdir dist
+          cabal install exe:uptop --install-method=copy --overwrite-policy=always --installdir=dist
+
+      - name: Set binary path name
+        run: echo "::set-env name=BINARY_PATH::./dist/uptop${{ env.EXT }}"
+
+      - name: Strip binary
+        run: strip ${{ env.BINARY_PATH }}
+
+      - name: Compress binary
+        uses: svenstaro/upx-action@2.0.1
+        with:
+          file: ${{ env.BINARY_PATH }}
+          args: --lzma
+      
+      - name: Tar files
+        run: tar -cvf uptop.tar ./dist/uptop${{ env.EXT }}
+
+      - name: Load Release URL File from release job
+        uses: actions/download-artifact@v1
+        with:
+          name: release_url
+
+      - name: Get Release File Name & Upload URL
+        id: get_release_info
+        run: |
+          echo "::set-output name=upload_url::$(cat release_url/release_url.txt)"
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: uptop.tar
+          asset_name: uptop-${{ steps.tag.outputs.tag }}-${{ runner.os }}.tar
+          asset_content_type: application/octet-stream
