@@ -15,22 +15,32 @@ https://github.com/ldgrp/uptop/releases
 
 Download the binary, untar the archive and run the `uptop` executable.
 
+`uptop` will use the `UP_BANK_TOKEN` environment variable to
+populate the initial auth screen.
+
 ```bash
 $ tar -xvf uptop-<version>-<os>.tar
 $ cd dist
 $ ./uptop
 ```
 
-![auth-tui-screenshot](/img/auth.png)
+If you enconter this error,
+```
+error while loading shared libraries: libtinfo.so.5: cannot open shared object file: No such file or directory
+```
+installing `libncurses5` on Ubuntu solves the problem.
 
-If available, `uptop` will use the `UP_BANK_TOKEN` environment variable to
-populate the initial auth screen.
+```
+$ sudo apt-get update
+$ sudo apt-get install libncurses5
+```
 
 ### Windows
 
 `uptop` depends on `vty` which does **not** support Windows.
+Follow the instructions above for WSL.
 
-### Build from source
+### Source
 If you do not have `cabal`, I highly recommend [`ghcup`][ghcup] or 
 reading [this manual][cabal].
 
@@ -42,16 +52,16 @@ cabal install uptop
 
 ## Controls 🕹️
 
-|               | Key       | Vim-style |
-|---------------|-----------|-----------|
-| Up            | Up        | k         |
-| Down          | Down      | j         |
-| Page Up       | PgUp      | Ctrl-b    |
-| Page Down     | PgDown    | Ctrl-f    |
-| Go to first   | Home      | g         |
-| Go to last    | End       | G         |
-| Viewport Up   | Ctrl+Up   | Ctrl+k    |
-| Viewport Down | Ctrl+Down | Ctrl+j    |
+|               | Key         | Vim-style   |
+|---------------|-------------|-------------|
+| Up            | Up          | k           |
+| Down          | Down        | j           |
+| Page Up       | PgUp        | Ctrl-b      |
+| Page Down     | PgDown      | Ctrl-f      |
+| Go to first   | Home        | g           |
+| Go to last    | End         | G           |
+| Viewport Up   | Ctrl+W Up   | Ctrl+W k    |
+| Viewport Down | Ctrl+W Down | Ctrl+W j    |
   
 
 ## Todo  📝
