@@ -1,4 +1,4 @@
-# Revision history for up-bank
+# Revision history for uptop
 
 ## 0.1.0.0 -- YYYY-mm-dd
 
