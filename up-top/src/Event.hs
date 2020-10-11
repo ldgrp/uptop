@@ -62,10 +62,7 @@ handleEvent s (VtyEvent e) =
 
     HelpView -> 
       case e of
-        EvKey KEsc        [] -> continue (setMainScreen s)
-        EvKey (KChar 'q') [] -> continue (setMainScreen s)
-        EvKey (KChar '1') [] -> continue (setMainScreen s)
-        _ -> continue s
+        _ -> continue (setMainScreen s)
 handleEvent s (AppEvent (UAccounts as)) =
   continue (s & accounts .~ L.list AccountList (Vec.fromList as) 1
               & transactions %~ H.union transactions')
