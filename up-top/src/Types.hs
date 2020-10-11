@@ -2,6 +2,7 @@
 
 module Types where 
 
+import Brick.BChan
 import qualified Brick.Widgets.List as L
 import Data.HashMap.Strict
 import qualified Data.Text as T
@@ -12,7 +13,11 @@ import Up.Model.Transaction
 import Up.Model.Category
 import Servant.Client ( ClientEnv )
 
-data Name = Name | TransactionList | AccountList | CategoryList
+data Name 
+  = Name 
+  | TransactionList 
+  | AccountList 
+  | CategoryList
   deriving (Eq, Ord, Show)
 
 -- | A Brick.Widgets.List.List of Accounts
@@ -22,6 +27,21 @@ type Accounts = L.List Name Account
 type Transactions = L.List Name Transaction
 
 type Categories' = L.List Name Category
+
+data URequest 
+  = FetchTransaction AccountId
+  | FetchAccount AccountId
+  | FetchAccounts
+  | FetchCategories
+
+data UEvent
+  = UConnect
+  | UError String
+  | UAccount Account
+  | UAccounts [Account]
+  | UTransactions (AccountId, [Transaction])
+  | UCategories [Category]
+  deriving (Eq, Show)
 
 data Focus = FocusAccounts | FocusTransactions | FocusDetails
   deriving (Eq, Ord, Show)
@@ -85,10 +105,11 @@ helpScreen = Screen HelpTag HelpView
 
 data State = State 
   { _accounts :: Accounts
-  , _transactions :: Transactions
+  , _transactions :: HashMap AccountId Transactions
   , _categoryMap :: HashMap CategoryId T.Text
   , _screen :: ListZipper Screen
   , _clientEnv :: ClientEnv
+  , _reqChan :: BChan URequest
   , _version :: Version
   } 
 

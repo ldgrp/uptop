@@ -65,11 +65,11 @@ cabal install uptop
   
 
 ## Todo  📝
-- [ ] Help screen
+- [x] Help screen
 - [ ] Mouse support
 - [ ] Webhooks
 - [ ] Weekly spending chart
-- [ ] Background thread for transactions
+- [x] Background thread for transactions
 - [ ] Search
 
 [up-api]: https://developer.up.com.au/

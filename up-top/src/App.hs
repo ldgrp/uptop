@@ -11,7 +11,7 @@ import Types
 import UI
 
 -- App definition
-app :: App State e Name
+app :: App State UEvent Name
 app = App
   { appDraw = drawUI
   , appChooseCursor = showFirstCursor

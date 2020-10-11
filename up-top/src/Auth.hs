@@ -22,14 +22,18 @@ import Up
 import Up.API
 import Up.Model.Token
 
-
 import qualified Data.Text as T
 
 data Name = TokenField
   deriving  (Eq, Ord, Show)
 
-data AuthEvent = Connect | Timeout | NotAuthorized | Invalid | Success AuthInfo
-  deriving  (Eq, Show)
+data AuthEvent
+  = AConnect
+  | ATimeout
+  | ANotAuthorized
+  | AInvalid
+  | ASuccess AuthInfo
+  deriving (Eq, Show)
 
 data AuthState = Idle | Connecting
   deriving  (Eq, Show)
@@ -73,21 +77,21 @@ handleEvent st (VtyEvent (EvKey KEnter [])) = do
       
   continue st
 
-handleEvent st (AppEvent Connect) = 
+handleEvent st (AppEvent AConnect) = 
   continue (st & currentState .~ Connecting 
-               & lastAttempt .~ Just Connect)
-handleEvent st (AppEvent Timeout) = 
+               & lastAttempt .~ Just AConnect)
+handleEvent st (AppEvent ATimeout) = 
   continue (st & currentState .~ Idle 
-               & lastAttempt .~ Just Timeout)
-handleEvent st (AppEvent NotAuthorized) = 
+               & lastAttempt .~ Just ATimeout)
+handleEvent st (AppEvent ANotAuthorized) = 
   continue (st & currentState .~ Idle 
-               & lastAttempt .~ Just NotAuthorized)
-handleEvent st (AppEvent Invalid) = 
+               & lastAttempt .~ Just ANotAuthorized)
+handleEvent st (AppEvent AInvalid) = 
   continue (st & currentState .~ Idle 
-               & lastAttempt .~ Just Invalid)
-handleEvent st (AppEvent (Success a)) = 
+               & lastAttempt .~ Just AInvalid)
+handleEvent st (AppEvent (ASuccess a)) = 
   halt (st & currentState .~ Idle 
-               & lastAttempt .~ Just (Success a))
+               & lastAttempt .~ Just (ASuccess a))
 
 handleEvent st e = do 
   f' <- handleFormEvent e (st ^. form)
@@ -110,16 +114,16 @@ authWorker requestChan responseChan = forever $ do
       
       case T.isPrefixOf "up:yeah:" tok of
         False -> do
-          writeBChan responseChan Invalid
+          writeBChan responseChan AInvalid
         True -> do
-          writeBChan responseChan Connect
+          writeBChan responseChan AConnect
 
           env <- mkUpClient $ Token (T.unpack tok)
           res <- runClientM ping env
 
           case res of
-            Right _ping -> writeBChan responseChan $ Success aInfo
-            Left _err -> writeBChan responseChan NotAuthorized
+            Right _ping -> writeBChan responseChan $ ASuccess aInfo
+            Left _err -> writeBChan responseChan ANotAuthorized
 
 emptyAuthInfo :: AuthInfo 
 emptyAuthInfo = AuthInfo { _token = "" }
@@ -171,11 +175,11 @@ drawAuth st =
     status :: Maybe AuthEvent -> String
     status Nothing = " " 
     status (Just ae) = case ae of
-      Connect -> "Connecting..."
-      NotAuthorized -> "Authentication failed."
-      Success _i -> "Succesful"
-      Timeout -> "Timed out."
-      Invalid -> "Invalid token"
+      AConnect -> "Connecting..."
+      ANotAuthorized -> "Authentication failed."
+      ASuccess _i -> "Succesful"
+      ATimeout -> "Timed out."
+      AInvalid -> "Invalid token"
 
 mkForm :: AuthInfo -> Form AuthInfo AuthEvent Name
 mkForm = newForm [(str "Token: " <+>) @@= editTextField token TokenField (Just 1)]

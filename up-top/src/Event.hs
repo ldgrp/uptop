@@ -1,23 +1,23 @@
 module Event where
 
+import Brick.BChan 
 import Brick.Main
-import Brick.Types ( BrickEvent(VtyEvent), EventM, Next )
+import Brick.Types 
 import qualified Brick.Widgets.List as L
 import Control.Monad.IO.Class (liftIO)
-import Graphics.Vty
-
+import Control.Monad
 import qualified Data.Vector as Vec
+import qualified Data.HashMap.Strict as H
+import Graphics.Vty
 import Lens.Micro
-import Servant.Client
 
 import Types
 
-import Up.API
 import Up.Model.Account
-
+import Up.Model.Category
 
 -- Handling events
-handleEvent :: State -> BrickEvent Name e -> EventM Name (Next State)
+handleEvent :: State -> BrickEvent Name UEvent -> EventM Name (Next State)
 handleEvent s (VtyEvent e) =
   case s ^. screen ^. focus ^. view of
 
@@ -36,20 +36,25 @@ handleEvent s (VtyEvent e) =
         EvKey (KChar 'q') [] -> halt s
         EvKey (KChar '?') [] -> continue (setHelpScreen s)
         EvKey (KChar 'w') [MCtrl] -> continue (setView (MainView lz ViewportMode) s)
-
         EvKey KEnter [] -> case lz ^. focus of
           FocusAccounts -> do
-            active <- case L.listSelectedElement (s ^. accounts) of
+            aid <- case L.listSelectedElement (s ^. accounts) of
               Just (_, a) -> pure (accountId a)
               Nothing -> fail ""
-            result <- liftIO $ query (s ^. clientEnv) (listTransactionsByAccount_ active Nothing Nothing Nothing Nothing)
-            continue (s & transactions .~ (L.list TransactionList (Vec.fromList result) 0))
+            liftIO $ writeBChan (s ^. reqChan) $ FetchTransaction aid
+            continue (setView (MainView (focusRight lz) NormalMode) s)
           _ -> continue s
-
         ev -> case lz ^. focus of
           FocusTransactions -> do
-            t' <- L.handleListEventVi L.handleListEvent ev (s ^. transactions)
-            continue (s & transactions .~ t')
+            -- The id of the selected account
+            case accountId <$> snd <$> L.listSelectedElement (s ^. accounts) of
+              Just aid -> 
+                case H.lookup aid (s ^. transactions) of
+                  Just tList -> do
+                    tList' <- L.handleListEventVi L.handleListEvent ev tList
+                    continue (s & transactions %~ H.insert aid tList')
+                  Nothing -> continue s
+              Nothing -> continue s
           FocusAccounts -> do
             a' <- L.handleListEventVi L.handleListEvent ev (s ^. accounts)
             continue (s & accounts .~ a')
@@ -61,13 +66,13 @@ handleEvent s (VtyEvent e) =
         EvKey (KChar 'q') [] -> continue (setMainScreen s)
         EvKey (KChar '1') [] -> continue (setMainScreen s)
         _ -> continue s
-
-handleEvent state _ = continue state
-
--- | Query the Up API
-query :: ClientEnv -> ClientM a -> IO a
-query e q = do
-  r <- runClientM q e
-  case r of
-    Right a -> pure a
-    Left err -> fail (show err)
+handleEvent s (AppEvent (UAccounts as)) =
+  continue (s & accounts .~ L.list AccountList (Vec.fromList as) 1
+              & transactions %~ H.union transactions')
+  where transactions' = H.fromList [(accountId a, L.list TransactionList (Vec.fromList []) 1) | a <- as]
+handleEvent s (AppEvent (UTransactions (aid, ts))) = 
+  continue (s & transactions %~ H.insert aid (L.list TransactionList (Vec.fromList ts) 1))
+handleEvent s (AppEvent (UCategories cs)) = 
+  continue (s & categoryMap .~ H.fromList (fmap (liftM2 (,) categoryId categoryName) cs))
+handleEvent s (AppEvent _) = continue s
+handleEvent s _ = continue s

@@ -8,7 +8,6 @@ import Brick.Widgets.Border.Style
 import qualified Brick.Widgets.List as L
 import qualified Brick.Widgets.Center as C
 import Brick.Widgets.Core
-    ( fill, hBox, str, vBox, vLimit, withBorderStyle, (<+>))
 import qualified Data.HashMap.Strict as H
 import qualified Data.Text as T
 import Lens.Micro
@@ -24,10 +23,19 @@ drawMain st lz =
         vLimit 6 $ drawAccounts st focus'
       , drawTransactions st focus'
       , vLimit 5 $ drawDetails st focus'
-      , vLimit 1 $ (str $ "1 Main  ") <+> fill ' ' <+> str "? Help"
+      , drawBar st
     ]
   ]
-  where focus' = lz ^. focus
+  where 
+    focus' = lz ^. focus
+
+drawBar :: State -> Widget Name
+drawBar _st = vLimit 1 $
+  hBox [mainButton, fill ' ', helpButton]
+  where
+    mainButton = str "1 Main  "
+    helpButton = str "? Help"
+
 
 drawDetails :: State -> Focus -> Widget Name
 drawDetails st f = 
@@ -47,8 +55,8 @@ drawAccountDetails st = do
                   ,hBox [fill ' ']
                   ,hBox [created a, fill ' ']
                   ]
-    aid = str . T.unpack . accountId
-    name = str . rpad 25 . accountDisplayName
+    _aid = str . T.unpack . accountId
+    name = str . T.unpack . accountDisplayName
     atype = str . lpad 17 . T.pack . show . accountAccountType
     balance = str . lpad 17 
                   . showMoneyObject 
@@ -64,13 +72,17 @@ drawTransactionDetails :: State -> Widget Name
 drawTransactionDetails st =
   maybe (fill ' ') (\(_, t) -> draw t) maybeTransaction
   where 
-    maybeTransaction = L.listSelectedElement (st ^. transactions)
+    -- The id of the selected account
+    aid = accountId <$> snd <$> L.listSelectedElement (st ^. accounts)
+    -- The transactions associated with the selected account
+    ts = aid >>= flip H.lookup (st ^. transactions)
+    maybeTransaction = ts >>= L.listSelectedElement
     draw t = vBox [hBox [desc t, fill ' ', created t, amount t]
-                  ,hBox [raw t, fill ' ', status t, famount t]
+                  ,hBox [traw t, fill ' ', status t, famount t]
                   ,hBox [roundup t, fill ' ', category t]
                   ]
-    tid = str . T.unpack . transactionId
-    desc = str . rpad 30 . transactionDescription
+    _tid = str . T.unpack . transactionId
+    desc = str . T.unpack . transactionDescription
     status = str . rpad 12 . T.pack . show . transactionStatus
     amount = str . lpad 17 
                  . showMoneyObject 
@@ -78,8 +90,8 @@ drawTransactionDetails st =
     famount = str . lpad' 17 
                   . fmap showMoneyObject 
                   . transactionForeignAmount
-    message = str . rpad' 40 . transactionMessage
-    raw = str . rpad' 50 . transactionRawText
+    _message = str . rpad' 40 . transactionMessage
+    traw = str . rpad' 50 . transactionRawText
 
     created = str . rpad' 12 
                   . fmap T.pack 
@@ -110,7 +122,7 @@ drawAccounts st f =
 
 drawAccountsElement :: Bool -> Account -> Widget Name
 drawAccountsElement _sel acc = 
-  let name = rpad 19 (accountDisplayName acc)
+  let name = T.unpack $ accountDisplayName acc
       atype = lpad 17 (T.pack $ show $ accountAccountType acc)
       balance = lpad 17 $ showMoneyObject (accountBalance acc)
   in vLimit 1 $ hBox [ str name, fill ' ', str balance, str atype ]
@@ -119,11 +131,16 @@ drawTransactions :: State -> Focus -> Widget Name
 drawTransactions st f = 
   withBorderStyle borderStyle $
   borderWithLabel (str "Transactions") $
-  L.renderList drawTransactionElement True (st ^. transactions)
+  maybe (fill ' ') (L.renderList drawTransactionElement True) ts
   where 
     borderStyle = case f of
       FocusTransactions -> unicodeBold
       _ -> unicode
+    -- The id of the selected account
+    aid = accountId <$> snd <$> L.listSelectedElement (st ^. accounts)
+    -- The transactions associated with the selected account
+    ts = aid >>= flip H.lookup (st ^. transactions)
+    
 
 drawTransactionElement :: Bool -> Transaction -> Widget Name
 drawTransactionElement _sel t = 

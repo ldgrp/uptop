@@ -3,6 +3,7 @@
 module Common where
 
 
+import Control.Monad
 import qualified Data.Text as T
 import Data.Time.LocalTime
 import Data.Time.Format
@@ -34,3 +35,6 @@ lpad' i t = lpad i t'
 rpad' :: Int -> Maybe T.Text -> String
 rpad' i t = rpad i t'
   where t' = maybe "" id t :: T.Text
+
+liftMaybe :: (MonadPlus m) => Maybe a -> m a
+liftMaybe = maybe mzero return

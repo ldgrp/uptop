@@ -2,10 +2,12 @@
 
 module Main where
 
-import Control.Monad (void, liftM2)
 
+import Brick.BChan
 import Brick.Main
 import qualified Brick.Widgets.List as L
+import Control.Monad
+import Control.Concurrent
 import qualified Data.Vector as Vec
 import Data.HashMap.Strict
 import Graphics.Vty
@@ -13,14 +15,10 @@ import Graphics.Vty
 import Up
 
 import Up.API
-import Up.Model.Account
-import Up.Model.Transaction
 import Up.Model.Token
 import Up.Model.Category
-
 import App
 import Auth
-import Event
 import Types
 
 import qualified Data.Text as T
@@ -41,7 +39,7 @@ main = do
 
   -- Either we have a working token, or the user has exited early.
   token <- case authEvent of
-    Just (Success (AuthInfo tok)) -> pure $ T.unpack tok
+    Just (ASuccess (AuthInfo tok)) -> pure $ T.unpack tok
     Just _ae -> do
       shutdown vty
       exitSuccess
@@ -51,27 +49,52 @@ main = do
 
   env <- mkUpClient (Token token)
 
-  -- Retrieve all categories
-  catList <- query env (getCategories <$> listCategories Nothing)
-  let catMap = fromList (fmap (liftM2 (,) categoryId categoryName) catList)
+  requestChan <- newBChan 100
+  responseChan <- newBChan 100
 
-  -- Retrieve all accounts
-  acc <- query env (listAccounts_ Nothing)
-
-  void $ customMainWithVty vty buildVty (Nothing) app (initialState [] acc catMap env)
+  void $ forkIO $ requestWorker env requestChan responseChan
+  writeBChan requestChan FetchAccounts
+  writeBChan requestChan FetchCategories
+  void $ customMainWithVty vty buildVty (Just responseChan) app (initialState env requestChan)
   shutdown vty
 
-initialState :: [Transaction] 
-             -> [Account]
-             -> HashMap CategoryId T.Text
-             -> ClientEnv
+-- Thread for handling requests
+requestWorker :: ClientEnv -> BChan URequest -> BChan UEvent -> IO ()
+requestWorker env requestChan responseChan = forever $ do
+  req <- readBChan requestChan
+  case req of
+    FetchTransaction aid -> do
+      res <- query (listTransactionsByAccount_ aid Nothing Nothing Nothing Nothing)
+      case res of
+        Right ts -> writeBChan responseChan $ UTransactions (aid, ts)
+        Left err -> writeBChan responseChan $ UError (show err)
+    FetchAccount aid -> do
+      res <- query (retrieveAccount aid)
+      case res of
+        Right a -> writeBChan responseChan $ UAccount a
+        Left err -> writeBChan responseChan $ UError (show err)
+    FetchAccounts -> do
+      res <- query (listAccounts_ Nothing)
+      case res of
+        Right as -> writeBChan responseChan $ UAccounts as
+        Left err -> writeBChan responseChan $ UError (show err)
+    FetchCategories -> do
+      res <- query (getCategories <$> listCategories Nothing)
+      case res of
+        Right cs -> writeBChan responseChan $ UCategories cs
+        Left err -> writeBChan responseChan $ UError (show err)
+  where query = flip runClientM env
+
+initialState :: ClientEnv
+             -> BChan URequest
              -> State
-initialState t a catMap env = State 
-  { _transactions = L.list TransactionList (Vec.fromList t) 1
-  , _accounts = L.list AccountList (Vec.fromList a) 1
+initialState env requestChan = State 
+  { _transactions = empty
+  , _accounts = L.list AccountList (Vec.fromList []) 1
   , _screen = ListZipper [helpScreen] [] mainScreen
-  , _categoryMap = catMap
+  , _categoryMap = empty
   , _clientEnv = env
+  , _reqChan = requestChan
   , _version = appVersion
   }
 
