@@ -2,16 +2,15 @@
 
 module Types where 
 
-import Brick.BChan
 import qualified Brick.Widgets.List as L
 import Data.HashMap.Strict
 import qualified Data.Text as T
+import Lens.Micro
 import Lens.Micro.TH
 import Up.Model.Account
 import Up.Model.Transaction
 import Up.Model.Category
 import Servant.Client ( ClientEnv )
-
 
 data Name = Name | TransactionList | AccountList | CategoryList
   deriving (Eq, Ord, Show)
@@ -25,13 +24,14 @@ type Transactions = L.List Name Transaction
 type Categories' = L.List Name Category
 
 data Focus = FocusAccounts | FocusTransactions | FocusDetails
-data Screen = AuthScreen | MainScreen
+  deriving (Eq, Ord, Show)
 
+-- * ListZipper
 data ListZipper a = ListZipper
-  { _leftZ :: [a]
-  , _rightZ :: [a]
-  , _currentZ :: a
-  } deriving (Show, Eq)
+  { _leftCtx :: [a]
+  , _rightCtx :: [a]
+  , _focus :: a
+  } deriving (Show, Ord, Eq)
 
 makeLenses ''ListZipper
 
@@ -45,14 +45,63 @@ focusRight (ListZipper ls (r:rs) x) = ListZipper (x:ls) rs r
 focusRight (ListZipper ls [] x) = ListZipper [x] rs r 
   where (r:rs) = reverse ls 
 
+-- | focusRight until the focus satisfies the predicate.
+focusFind :: (a -> Bool) -> ListZipper a -> ListZipper a
+focusFind p lz 
+  | p (lz ^. focus) = lz
+  | otherwise = focusFind p $ focusRight lz
+
+data Version = Version { _versionNumber :: String }
+  deriving (Eq, Ord, Show)
+
+makeLenses ''Version
+
+data Mode = NormalMode | ViewportMode
+  deriving (Eq, Ord, Show)
+
+data View
+  = MainView (ListZipper Focus) Mode
+  | HelpView
+  deriving (Eq, Ord, Show)
+
+data Tag
+  = MainTag
+  | HelpTag
+  deriving (Eq, Ord, Show)
+
+-- A Screen is a tag and a view
+data Screen = Screen
+  { _tag :: Tag
+  , _view :: View 
+  }
+
+makeLenses ''Screen
+
+mainScreen :: Screen
+mainScreen = Screen MainTag (MainView (ListZipper [] [FocusTransactions] FocusAccounts) NormalMode)
+
+helpScreen :: Screen
+helpScreen = Screen HelpTag HelpView
+
 data State = State 
   { _accounts :: Accounts
   , _transactions :: Transactions
   , _categoryMap :: HashMap CategoryId T.Text
-  , _focus :: ListZipper Focus
   , _screen :: ListZipper Screen
   , _clientEnv :: ClientEnv
-  , _isFocusing :: Bool
+  , _version :: Version
   } 
 
 makeLenses ''State
+
+setScreen :: Tag -> State -> State
+setScreen t st = st & screen %~ focusFind ((t==) . (^. tag))
+
+setMainScreen :: State -> State
+setMainScreen = setScreen MainTag
+
+setHelpScreen :: State -> State
+setHelpScreen = setScreen HelpTag
+
+setView :: View -> State -> State
+setView v st = st & (screen . focus . view) .~ v

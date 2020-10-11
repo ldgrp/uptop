@@ -39,8 +39,12 @@ executable uptop
   hs-source-dirs:      src
   other-modules:       App
                      , Auth
+                     , Common
+                     , Event
                      , Types
                      , UI
+                     , UI.MainView
+                     , UI.HelpView
   ghc-options:
     -Wall
     -Wcompat
