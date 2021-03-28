@@ -2,36 +2,31 @@
 
 module Main where
 
-
+import App
+import Auth
 import Brick.BChan
 import Brick.Main
 import qualified Brick.Widgets.List as L
-import Control.Monad
 import Control.Concurrent
-import qualified Data.Vector as Vec
+import Control.Monad
 import Data.HashMap.Strict
-import Graphics.Vty
-
-import Up
-
-import Up.API
-import Up.Model.Token
-import Up.Model.Category
-import App
-import Auth
-import Types
-
 import qualified Data.Text as T
-
+import qualified Data.Vector as Vec
+import Graphics.Vty
 import Servant.Client
-import System.Exit
 import System.Environment
+import System.Exit
+import Types
+import Up
+import Up.API
+import Up.Model.Category
+import Up.Model.Token
 
 main :: IO ()
 main = do
   let buildVty = mkVty defaultConfig
   initialVty <- buildVty
-  
+
   -- Read the token environment variable
   envToken <- lookupEnv "UP_BANK_TOKEN"
 
@@ -83,20 +78,23 @@ requestWorker env requestChan responseChan = forever $ do
       case res of
         Right cs -> writeBChan responseChan $ UCategories cs
         Left err -> writeBChan responseChan $ UError (show err)
-  where query = flip runClientM env
+  where
+    query = flip runClientM env
 
-initialState :: ClientEnv
-             -> BChan URequest
-             -> State
-initialState env requestChan = State 
-  { _transactions = empty
-  , _accounts = L.list AccountList (Vec.fromList []) 1
-  , _screen = ListZipper [helpScreen] [] mainScreen
-  , _categoryMap = empty
-  , _clientEnv = env
-  , _reqChan = requestChan
-  , _version = appVersion
-  }
+initialState ::
+  ClientEnv ->
+  BChan URequest ->
+  State
+initialState env requestChan =
+  State
+    { _transactions = empty,
+      _accounts = L.list AccountList (Vec.fromList []) 1,
+      _screen = ListZipper [helpScreen] [] mainScreen,
+      _categoryMap = empty,
+      _clientEnv = env,
+      _reqChan = requestChan,
+      _version = appVersion
+    }
 
 appVersion :: Version
 appVersion = Version "0.2"

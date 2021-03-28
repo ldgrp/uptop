@@ -38,9 +38,9 @@ data AuthEvent
 data AuthState = Idle | Connecting
   deriving  (Eq, Show)
 
-data AuthRequest = DoPing AuthInfo
+newtype AuthRequest = DoPing AuthInfo
 
-data AuthInfo = AuthInfo { _token :: T.Text }
+newtype AuthInfo = AuthInfo { _token :: T.Text }
   deriving  (Eq, Show)
 makeLenses ''AuthInfo
 
@@ -79,19 +79,19 @@ handleEvent st (VtyEvent (EvKey KEnter [])) = do
 
 handleEvent st (AppEvent AConnect) = 
   continue (st & currentState .~ Connecting 
-               & lastAttempt .~ Just AConnect)
+               & lastAttempt ?~ AConnect)
 handleEvent st (AppEvent ATimeout) = 
   continue (st & currentState .~ Idle 
-               & lastAttempt .~ Just ATimeout)
+               & lastAttempt ?~ ATimeout)
 handleEvent st (AppEvent ANotAuthorized) = 
   continue (st & currentState .~ Idle 
-               & lastAttempt .~ Just ANotAuthorized)
+               & lastAttempt ?~ ANotAuthorized)
 handleEvent st (AppEvent AInvalid) = 
   continue (st & currentState .~ Idle 
-               & lastAttempt .~ Just AInvalid)
+               & lastAttempt ?~ AInvalid)
 handleEvent st (AppEvent (ASuccess a)) = 
   halt (st & currentState .~ Idle 
-               & lastAttempt .~ Just (ASuccess a))
+               & lastAttempt ?~ ASuccess a)
 
 handleEvent st e = do 
   f' <- handleFormEvent e (st ^. form)
@@ -111,11 +111,9 @@ authWorker requestChan responseChan = forever $ do
   case req of
     DoPing aInfo -> do
       let tok = aInfo ^. token
-      
-      case T.isPrefixOf "up:yeah:" tok of
-        False -> do
-          writeBChan responseChan AInvalid
-        True -> do
+
+      if T.isPrefixOf "up:yeah:" tok
+        then do
           writeBChan responseChan AConnect
 
           env <- mkUpClient $ Token (T.unpack tok)
@@ -124,6 +122,8 @@ authWorker requestChan responseChan = forever $ do
           case res of
             Right _ping -> writeBChan responseChan $ ASuccess aInfo
             Left _err -> writeBChan responseChan ANotAuthorized
+        else do
+          writeBChan responseChan AInvalid
 
 emptyAuthInfo :: AuthInfo 
 emptyAuthInfo = AuthInfo { _token = "" }

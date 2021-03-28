@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Types where 
+module Types where
 
 import Brick.BChan
 import qualified Brick.Widgets.List as L
@@ -8,15 +8,15 @@ import Data.HashMap.Strict
 import qualified Data.Text as T
 import Lens.Micro
 import Lens.Micro.TH
+import Servant.Client (ClientEnv)
 import Up.Model.Account
-import Up.Model.Transaction
 import Up.Model.Category
-import Servant.Client ( ClientEnv )
+import Up.Model.Transaction
 
-data Name 
-  = Name 
-  | TransactionList 
-  | AccountList 
+data Name
+  = Name
+  | TransactionList
+  | AccountList
   | CategoryList
   deriving (Eq, Ord, Show)
 
@@ -28,7 +28,7 @@ type Transactions = L.List Name Transaction
 
 type Categories' = L.List Name Category
 
-data URequest 
+data URequest
   = FetchTransaction AccountId
   | FetchAccount AccountId
   | FetchAccounts
@@ -47,31 +47,35 @@ data Focus = FocusAccounts | FocusTransactions | FocusDetails
   deriving (Eq, Ord, Show)
 
 -- * ListZipper
+
 data ListZipper a = ListZipper
-  { _leftCtx :: [a]
-  , _rightCtx :: [a]
-  , _focus :: a
-  } deriving (Show, Ord, Eq)
+  { _leftCtx :: [a],
+    _rightCtx :: [a],
+    _focus :: a
+  }
+  deriving (Show, Ord, Eq)
 
 makeLenses ''ListZipper
 
 focusLeft :: ListZipper a -> ListZipper a
-focusLeft (ListZipper (l:ls) rs x) = ListZipper ls (x:rs) l
-focusLeft (ListZipper [] rs x) = ListZipper ls [x] l 
-  where (l:ls) = reverse rs 
+focusLeft (ListZipper (l : ls) rs x) = ListZipper ls (x : rs) l
+focusLeft (ListZipper [] rs x) = ListZipper ls [x] l
+  where
+    (l : ls) = reverse rs
 
 focusRight :: ListZipper a -> ListZipper a
-focusRight (ListZipper ls (r:rs) x) = ListZipper (x:ls) rs r
-focusRight (ListZipper ls [] x) = ListZipper [x] rs r 
-  where (r:rs) = reverse ls 
+focusRight (ListZipper ls (r : rs) x) = ListZipper (x : ls) rs r
+focusRight (ListZipper ls [] x) = ListZipper [x] rs r
+  where
+    (r : rs) = reverse ls
 
 -- | focusRight until the focus satisfies the predicate.
 focusFind :: (a -> Bool) -> ListZipper a -> ListZipper a
-focusFind p lz 
+focusFind p lz
   | p (lz ^. focus) = lz
   | otherwise = focusFind p $ focusRight lz
 
-data Version = Version { _versionNumber :: String }
+newtype Version = Version {_versionNumber :: String}
   deriving (Eq, Ord, Show)
 
 makeLenses ''Version
@@ -91,8 +95,8 @@ data Tag
 
 -- A Screen is a tag and a view
 data Screen = Screen
-  { _tag :: Tag
-  , _view :: View 
+  { _tag :: Tag,
+    _view :: View
   }
 
 makeLenses ''Screen
@@ -103,20 +107,20 @@ mainScreen = Screen MainTag (MainView (ListZipper [] [FocusTransactions] FocusAc
 helpScreen :: Screen
 helpScreen = Screen HelpTag HelpView
 
-data State = State 
-  { _accounts :: Accounts
-  , _transactions :: HashMap AccountId Transactions
-  , _categoryMap :: HashMap CategoryId T.Text
-  , _screen :: ListZipper Screen
-  , _clientEnv :: ClientEnv
-  , _reqChan :: BChan URequest
-  , _version :: Version
-  } 
+data State = State
+  { _accounts :: Accounts,
+    _transactions :: HashMap AccountId Transactions,
+    _categoryMap :: HashMap CategoryId T.Text,
+    _screen :: ListZipper Screen,
+    _clientEnv :: ClientEnv,
+    _reqChan :: BChan URequest,
+    _version :: Version
+  }
 
 makeLenses ''State
 
 setScreen :: Tag -> State -> State
-setScreen t st = st & screen %~ focusFind ((t==) . (^. tag))
+setScreen t st = st & screen %~ focusFind ((t ==) . (^. tag))
 
 setMainScreen :: State -> State
 setMainScreen = setScreen MainTag
