@@ -1,44 +1,47 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Up.API ( 
-    -- * Accounts API
-      listAccounts
-    , listAccounts_
-    , retrieveAccount
+module Up.API
+  ( -- * Accounts API
+    listAccounts,
+    listAccounts_,
+    retrieveAccount,
+
     -- * Categories API
-    , listCategories
-    , retrieveCategory
+    listCategories,
+    retrieveCategory,
+
     -- * Tags API
-    , listTags
-    , listTags_
-    , addTags
-    , removeTags
+    listTags,
+    listTags_,
+    addTags,
+    removeTags,
+
     -- * Transactions API
-    , listTransactions
-    , listTransactions_
-    , retrieveTransaction
-    , listTransactionsByAccount
-    , listTransactionsByAccount_
+    listTransactions,
+    listTransactions_,
+    retrieveTransaction,
+    listTransactionsByAccount,
+    listTransactionsByAccount_,
+
     -- * Utility API
-    , ping
-    
-    , unpaginate
-    ) where
+    ping,
+    unpaginate,
+  )
+where
 
 import Control.Arrow (second)
 import Data.Proxy
+import qualified Data.Text as T
 import Servant.API
 import Servant.Client
 import Up.Model.Account
 import Up.Model.Category
 import Up.Model.Paginated
-import Up.Model.Utility
 import Up.Model.Tag
 import Up.Model.Transaction
-
-import qualified Data.Text as T
+import Up.Model.Utility
 
 -- * Accounts API
 type AccountsAPI = 
@@ -59,8 +62,9 @@ listAccounts :: Maybe Int         -- ^ page[size]
 listAccounts_ :: Maybe Int         -- ^ page[size]
               -> ClientM [Account]
 listAccounts_ size = unpaginate f g >>= pure . concat
-  where f = listAccounts size Nothing Nothing
-        g after = listAccounts size Nothing after
+  where
+    f = listAccounts size Nothing Nothing
+    g after = listAccounts size Nothing after
 
 -- | Retrieve a specific account by providing its unique identifier.
 retrieveAccount :: T.Text 
@@ -87,7 +91,6 @@ retrieveCategory :: T.Text
                  -> ClientM Category
 
 listCategories :<|> retrieveCategory = client (Proxy :: Proxy CategoriesAPI)
-
 
 -- * Tags API
 type TagsAPI =
@@ -131,10 +134,10 @@ removeTags :: T.Text
            -> TagInput
            -> ClientM ()
 
-listTags 
-  :<|> addTags 
-  :<|> removeTags 
-  = client (Proxy :: Proxy TagsAPI)
+listTags
+  :<|> addTags
+  :<|> removeTags =
+    client (Proxy :: Proxy TagsAPI)
 
 
 -- * Transactions API
@@ -177,8 +180,9 @@ listTransactions_ :: Maybe Int                -- ^ page[size]
                   -> Maybe T.Text             -- ^ filter[tag]
                   -> ClientM [Transaction]
 listTransactions_ size fsince funtil ftag = unpaginate f g >>= pure . concat
-  where f = listTransactions size Nothing Nothing fsince funtil ftag
-        g after = listTransactions size Nothing after Nothing Nothing Nothing
+  where
+    f = listTransactions size Nothing Nothing fsince funtil ftag
+    g after = listTransactions size Nothing after Nothing Nothing Nothing
 
 -- | Retrieve a specific transaction by providing its unique identifier.
 retrieveTransaction :: TransactionId         -- ^ transactionId
@@ -202,13 +206,13 @@ listTransactionsByAccount_ :: AccountId      -- ^ accountId
                            -> Maybe T.Text   -- ^ filter[tag]
                            -> ClientM [Transaction]
 listTransactionsByAccount_ aid size fsince funtil ftag = unpaginate f g >>= pure . concat
-  where f = listTransactionsByAccount aid size Nothing Nothing fsince funtil ftag
-        g after = listTransactionsByAccount aid size Nothing after Nothing Nothing Nothing
-
-listTransactions 
-  :<|> retrieveTransaction 
-  :<|> listTransactionsByAccount 
-  = client (Proxy :: Proxy TransactionsAPI)
+  where
+    f = listTransactionsByAccount aid size Nothing Nothing fsince funtil ftag
+    g after = listTransactionsByAccount aid size Nothing after Nothing Nothing Nothing
+listTransactions
+  :<|> retrieveTransaction
+  :<|> listTransactionsByAccount =
+    client (Proxy :: Proxy TransactionsAPI)
 
 -- * Utlity API
 type UtilityAPI = 
@@ -218,10 +222,9 @@ type UtilityAPI =
 -- | Make a basic ping request to the API. 
 -- | This is useful to verify that authentication is functioning correctly.
 ping :: ClientM Ping
-
 ping = client (Proxy :: Proxy UtilityAPI)
 
-data Cursor a = Start | Next a | End deriving Show
+data Cursor a = Start | Next a | End deriving (Show)
 
 maybeToCursor :: Maybe a -> Cursor a
 maybeToCursor (Just x) = Next x
@@ -234,19 +237,22 @@ unfoldrM f b = do
     Just (a, b') -> fmap (a :) (unfoldrM f b')
     Nothing -> return []
 
-wrapped :: Applicative m => m (Maybe (a, Maybe b))
-        -> (Maybe b -> m (Maybe (a, Maybe b)))
-        -> Cursor b 
-        -> m (Maybe (a, Cursor b))
+wrapped ::
+  Applicative m =>
+  m (Maybe (a, Maybe b)) ->
+  (Maybe b -> m (Maybe (a, Maybe b))) ->
+  Cursor b ->
+  m (Maybe (a, Cursor b))
 wrapped f _g Start = fmap (second maybeToCursor) <$> f
 wrapped _f g (Next b) = fmap (second maybeToCursor) <$> g (Just b)
 wrapped _f _g End = pure Nothing
 
-unpaginate :: Monad m
-           => m (Paginated a)
-           -> (Maybe T.Text -> m (Paginated a))
-           -> m [[a]]
+unpaginate ::
+  Monad m =>
+  m (Paginated a) ->
+  (Maybe T.Text -> m (Paginated a)) ->
+  m [[a]]
 unpaginate f g = unfoldrM (wrapped f' g') Start
-  where 
+  where
     f' = f >>= \p -> return $ Just (paginatedData p, paginatedNext p)
     g' b = g b >>= \p -> return $ Just (paginatedData p, paginatedNext p)
