@@ -6,8 +6,7 @@ import Brick.BChan
 import qualified Brick.Widgets.List as L
 import Data.HashMap.Strict
 import qualified Data.Text as T
-import Lens.Micro
-import Lens.Micro.TH
+import Lens.Micro.Platform hiding (view)
 import Servant.Client (ClientEnv)
 import Up.Model.Account
 import Up.Model.Category

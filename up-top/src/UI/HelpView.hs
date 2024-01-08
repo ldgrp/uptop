@@ -6,7 +6,7 @@ import Brick.Types
 import Brick.Widgets.Border
 import Brick.Widgets.Center
 import Brick.Widgets.Core
-import Lens.Micro
+import Lens.Micro.Platform
 import Types
 
 drawHelp :: State -> [Widget Name]

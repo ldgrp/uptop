@@ -24,9 +24,7 @@ executable uptop
                      , http-client
                      , http-client-tls
                      , http-types
-                     , microlens
                      , microlens-platform
-                     , microlens-th
                      , unordered-containers
                      , servant-client
                      , stm

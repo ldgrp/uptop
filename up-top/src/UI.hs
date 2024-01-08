@@ -3,7 +3,7 @@
 module UI where
 
 import Brick.Types
-import Lens.Micro
+import Lens.Micro.Platform hiding (view)
 
 import Types
 import UI.HelpView
