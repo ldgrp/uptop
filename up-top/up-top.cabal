@@ -10,7 +10,7 @@ maintainer:          leoorpilla3@gmail.com
 copyright:           2020
 category:            Web
 build-type:          Simple
-extra-source-files:  
+extra-source-files:
   README.md
   CHANGELOG.md
 source-repository   head
@@ -19,12 +19,13 @@ source-repository   head
 
 executable uptop
   main-is: Main.hs
-  build-depends:       base >= 4.13 && < 4.15
-                     , brick
+  build-depends:       base >= 4.13 && < 4.20
+                     , brick >= 2.0
                      , http-client
                      , http-client-tls
                      , http-types
                      , microlens
+                     , microlens-platform
                      , microlens-th
                      , unordered-containers
                      , servant-client
