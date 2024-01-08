@@ -44,12 +44,10 @@ handleEvent (VtyEvent e) = do
           _ -> pure ()
         ev -> case lz ^. focus of
           FocusTransactions -> do
-            -- The id of the selected account
-            preuse (accounts . L.listSelectedElementL . to accountId) >>= \case
-              Nothing -> pure ()
-              Just aid ->
-                zoom (transactions . ix aid) $
-                  L.handleListEventVi L.handleListEvent ev
+            -- The id of the selected account, if it exists
+            preuse (accounts . L.listSelectedElementL . to accountId) >>= mapM_ (\aid ->
+              zoom (transactions . ix aid) $
+                L.handleListEventVi L.handleListEvent ev)
           FocusAccounts     -> zoom accounts $ L.handleListEventVi L.handleListEvent ev
           _                 -> pure ()
     HelpView ->
