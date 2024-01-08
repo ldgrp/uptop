@@ -13,6 +13,7 @@ import Data.HashMap.Strict
 import qualified Data.Text as T
 import qualified Data.Vector as Vec
 import Graphics.Vty
+import Graphics.Vty.CrossPlatform
 import Servant.Client
 import System.Environment
 import System.Exit
