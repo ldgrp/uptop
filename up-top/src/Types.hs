@@ -7,7 +7,7 @@ import Brick.BChan
 import qualified Brick.Widgets.List as L
 import Data.HashMap.Strict
 import qualified Data.Text as T
-import Lens.Micro.Platform hiding (view)
+import Lens.Micro.Platform
 import Servant.Client (ClientEnv)
 import Up.Model.Account
 import Up.Model.Category
@@ -83,7 +83,7 @@ makeLenses ''Version
 data Mode = NormalMode | ViewportMode
   deriving (Eq, Ord, Show)
 
-data View
+data Display
   = MainView (ListZipper Focus) Mode
   | HelpView
   deriving (Eq, Ord, Show)
@@ -96,7 +96,7 @@ data Tag
 -- A Screen is a tag and a view
 data Screen = Screen
   { _tag :: Tag,
-    _view :: View
+    _display :: Display
   }
 
 makeLenses ''Screen
@@ -128,5 +128,5 @@ setMainScreen = setScreen MainTag
 setHelpScreen :: State -> State
 setHelpScreen = setScreen HelpTag
 
-setView :: View -> State -> State
-setView v st = st & (screen . focus . view) .~ v
+setDisplay :: Display -> State -> State
+setDisplay v st = st & (screen . focus . display) .~ v

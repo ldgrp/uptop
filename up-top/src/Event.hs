@@ -10,7 +10,7 @@ import Control.Monad.IO.Class (liftIO)
 import qualified Data.HashMap.Strict as H
 import qualified Data.Vector as Vec
 import Graphics.Vty
-import Lens.Micro.Platform hiding (view)
+import Lens.Micro.Platform
 import Types
 import Up.Model.Account
 import Up.Model.Category
@@ -18,21 +18,21 @@ import Up.Model.Category
 -- Handling events
 handleEvent :: BrickEvent Name UEvent -> EventM Name State ()
 handleEvent (VtyEvent e) = do
-  use (screen . focus . view) >>= \case
+  use (screen . focus . display) >>= \case
     MainView lz ViewportMode ->
       case e of
         EvKey KEsc []        -> pure ()
-        EvKey (KChar 'k') [] -> modify (setView (MainView (focusLeft lz) NormalMode))
-        EvKey (KChar 'j') [] -> modify (setView (MainView (focusRight lz) NormalMode))
-        EvKey KUp []         -> modify (setView (MainView (focusLeft lz) NormalMode))
-        EvKey KDown []       -> modify (setView (MainView (focusRight lz) NormalMode))
-        _                    -> modify (setView (MainView lz NormalMode))
+        EvKey (KChar 'k') [] -> modify (setDisplay (MainView (focusLeft lz) NormalMode))
+        EvKey (KChar 'j') [] -> modify (setDisplay (MainView (focusRight lz) NormalMode))
+        EvKey KUp []         -> modify (setDisplay (MainView (focusLeft lz) NormalMode))
+        EvKey KDown []       -> modify (setDisplay (MainView (focusRight lz) NormalMode))
+        _                    -> modify (setDisplay (MainView lz NormalMode))
     MainView lz NormalMode ->
       case e of
         EvKey KEsc []             -> halt
         EvKey (KChar 'q') []      -> halt
         EvKey (KChar '?') []      -> modify setHelpScreen
-        EvKey (KChar 'w') [MCtrl] -> modify (setView (MainView lz ViewportMode))
+        EvKey (KChar 'w') [MCtrl] -> modify (setDisplay (MainView lz ViewportMode))
         EvKey KEnter []           -> case lz ^. focus of
           FocusAccounts -> do
             aid <- use (accounts . to L.listSelectedElement) >>= \case
@@ -40,7 +40,7 @@ handleEvent (VtyEvent e) = do
               Nothing     -> error "" -- TODO: No more monad fail
             ch <- use reqChan
             liftIO $ writeBChan ch $ FetchTransaction aid
-            modify (setView (MainView (focusRight lz) NormalMode))
+            modify (setDisplay (MainView (focusRight lz) NormalMode))
           _ -> pure ()
         ev -> case lz ^. focus of
           FocusTransactions -> do
