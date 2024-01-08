@@ -18,8 +18,8 @@ upBaseUrl :: BaseUrl
 upBaseUrl = BaseUrl Https "api.up.com.au" 443 "/api/v1"
 
 -- | Adds the Authorization header to every transaction
-makeUpClientRequest :: Token -> BaseUrl -> Request -> Client.Request
-makeUpClientRequest token = (addHeader .) . defaultMakeClientRequest
+makeUpClientRequest :: Token -> BaseUrl -> Request -> IO Client.Request
+makeUpClientRequest token base = fmap addHeader . defaultMakeClientRequest base
   where
     addHeader req = req {Client.requestHeaders = ("Authorization", BSC.pack $ tokenToString token) : Client.requestHeaders req}
 
