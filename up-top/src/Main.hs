@@ -90,7 +90,7 @@ initialState env requestChan =
   State
     { _transactions = empty,
       _accounts = L.list AccountList (Vec.fromList []) 1,
-      _screen = ListZipper [helpScreen] [] mainScreen,
+      _screen = ListZipper [helpScreen] mainScreen [],
       _categoryMap = empty,
       _clientEnv = env,
       _reqChan = requestChan,

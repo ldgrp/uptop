@@ -50,22 +50,22 @@ data Focus = FocusAccounts | FocusTransactions | FocusDetails
 
 data ListZipper a = ListZipper
   { _leftCtx :: [a],
-    _rightCtx :: [a],
-    _focus :: a
+    _focus :: a,
+    _rightCtx :: [a]
   }
   deriving (Show, Ord, Eq)
 
 makeLenses ''ListZipper
 
 focusLeft :: ListZipper a -> ListZipper a
-focusLeft (ListZipper (l : ls) rs x) = ListZipper ls (x : rs) l
-focusLeft (ListZipper [] rs x) = ListZipper ls [x] l
+focusLeft (ListZipper (l : ls) x rs) = ListZipper ls l (x : rs)
+focusLeft (ListZipper []       x rs) = ListZipper ls l [x]
   where
     (l : ls) = reverse rs
 
 focusRight :: ListZipper a -> ListZipper a
-focusRight (ListZipper ls (r : rs) x) = ListZipper (x : ls) rs r
-focusRight (ListZipper ls [] x) = ListZipper [x] rs r
+focusRight (ListZipper ls x (r : rs)) = ListZipper (x : ls) r rs
+focusRight (ListZipper ls x []      ) = ListZipper [x]      r rs
   where
     (r : rs) = reverse ls
 
@@ -102,7 +102,7 @@ data Screen = Screen
 makeLenses ''Screen
 
 mainScreen :: Screen
-mainScreen = Screen MainTag (MainView (ListZipper [] [FocusTransactions] FocusAccounts) NormalMode)
+mainScreen = Screen MainTag (MainView (ListZipper [] FocusAccounts [FocusTransactions]) NormalMode)
 
 helpScreen :: Screen
 helpScreen = Screen HelpTag HelpView
