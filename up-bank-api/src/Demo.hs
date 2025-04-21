@@ -2,8 +2,6 @@ module Main where
 
 import Data.Aeson.Encode.Pretty
 import qualified Data.ByteString.Lazy.Char8 as BLC
-import Network.HTTP.Client (newManager)
-import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Servant.Client
 import System.Environment
 import Up
@@ -14,13 +12,14 @@ import Up.Model.Token
 query :: ClientM a -> IO a
 query q = do
   token <- Token <$> getEnv "UP_BANK_TOKEN"
-  mgr <- newManager tlsManagerSettings
-  res <- runClientM q (mkClientEnv mgr upBaseUrl) {makeClientRequest = makeUpClientRequest token}
+  upClient <- mkUpClient token
+  res <- runClientM q upClient
   case res of
     Left err -> fail $ show err
     Right res' -> pure res'
 
 main :: IO ()
 main = do
-  res <- query (listTransactions_ Nothing Nothing Nothing Nothing)
+  putStrLn "Listing accounts..."
+  res <- query (listAccounts_ Nothing)
   BLC.putStrLn $ encodePretty res

@@ -78,21 +78,25 @@ handleEvent (VtyEvent (EvKey KEnter [])) = do
 handleEvent (AppEvent AConnect) = do
   currentState .= Connecting
   lastAttempt ?= AConnect
+  
 handleEvent (AppEvent ATimeout) = do
   currentState .= Idle
   lastAttempt ?= ATimeout
+  
 handleEvent (AppEvent ANotAuthorized) = do
   currentState .= Idle
   lastAttempt ?= ANotAuthorized
+  
 handleEvent (AppEvent AInvalid) = do
   currentState .= Idle
   lastAttempt ?= AInvalid
+  
 handleEvent (AppEvent (ASuccess a)) = do
   currentState .= Idle
   lastAttempt ?= ASuccess a
   halt
-
 handleEvent e = zoom form $ handleFormEvent e
+
 theMap :: AttrMap
 theMap = attrMap defAttr
   [ (focusedFormInputAttr, black `on` yellow)

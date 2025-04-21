@@ -119,12 +119,15 @@ data State = State
 
 makeLenses ''State
 
+-- | Switch to a screen with the specified tag
 setScreen :: Tag -> State -> State
 setScreen t st = st & screen %~ focusFind ((t ==) . (^. tag))
 
+-- | Switch to the main screen
 setMainScreen :: State -> State
 setMainScreen = setScreen MainTag
 
+-- | Switch to the help screen
 setHelpScreen :: State -> State
 setHelpScreen = setScreen HelpTag
 
