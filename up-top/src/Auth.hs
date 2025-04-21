@@ -13,9 +13,7 @@ import Control.Concurrent
 import Control.Monad (forever, void)
 import Control.Monad.IO.Class
 import Graphics.Vty
-import Lens.Micro
-import Lens.Micro.TH
-import Lens.Micro.Mtl ((.=), (?=), use)
+import Lens.Micro.Platform
 
 import Servant.Client
 
@@ -50,7 +48,7 @@ data State = State
   , _currentState :: AuthState
   , _lastAttempt :: Maybe AuthEvent
   , _reqChan :: BChan AuthRequest
-  } 
+  }
 makeLenses ''State
 
 -- App definition
@@ -69,7 +67,7 @@ handleEvent (VtyEvent (EvKey KEsc [])) = halt
 handleEvent (VtyEvent (EvKey KEnter [])) = do
   st <- get
   case st ^. currentState of
-    Connecting -> 
+    Connecting ->
       -- If we are already connecting, do nothing.
       pure ()
     Idle ->
@@ -97,9 +95,7 @@ handleEvent (AppEvent (ASuccess a)) = do
   currentState .= Idle
   lastAttempt ?= ASuccess a
   halt
-
-handleEvent e = do
-  zoom form $ handleFormEvent e
+handleEvent e = zoom form $ handleFormEvent e
 
 theMap :: AttrMap
 theMap = attrMap defAttr
@@ -129,7 +125,7 @@ authWorker requestChan responseChan = forever $ do
         else do
           writeBChan responseChan AInvalid
 
-emptyAuthInfo :: AuthInfo 
+emptyAuthInfo :: AuthInfo
 emptyAuthInfo = AuthInfo { _token = "" }
 
 initialState :: AuthInfo -> BChan AuthRequest -> State
@@ -161,9 +157,9 @@ interactiveAuth vty buildVty tok = do
   pure (st' ^. lastAttempt, vty')
 
 drawAuth :: State -> [Widget Name]
-drawAuth st = 
-  [ center $ hLimit 70 $ vLimit 18 $ border $ 
-    padLeft (Pad 2) $ padRight (Pad 2) $ 
+drawAuth st =
+  [ center $ hLimit 70 $ vLimit 18 $ border $
+    padLeft (Pad 2) $ padRight (Pad 2) $
     vBox [ center $ str "Enter your Up Bank Personal Access Token."
          , vLimit 2 $ fill ' '
          , renderForm (st ^. form)
@@ -175,9 +171,9 @@ drawAuth st =
          , center $ str "Press ESC to exit"
          ]
   ]
-  where 
+  where
     status :: Maybe AuthEvent -> String
-    status Nothing = " " 
+    status Nothing = " "
     status (Just ae) = case ae of
       AConnect -> "Connecting..."
       ANotAuthorized -> "Authentication failed."
