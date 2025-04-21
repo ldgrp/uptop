@@ -13,8 +13,7 @@ import Control.Concurrent
 import Control.Monad (forever, void)
 import Control.Monad.IO.Class
 import Graphics.Vty
-import Lens.Micro
-import Lens.Micro.TH
+import Lens.Micro.Platform
 
 import Servant.Client
 
@@ -49,7 +48,7 @@ data State = State
   , _currentState :: AuthState
   , _lastAttempt :: Maybe AuthEvent
   , _reqChan :: BChan AuthRequest
-  } 
+  }
 makeLenses ''State
 
 -- App definition
@@ -58,45 +57,42 @@ app = App
   { appDraw = drawAuth
   , appChooseCursor = showFirstCursor
   , appHandleEvent = handleEvent
-  , appStartEvent = return
+  , appStartEvent = pure ()
   , appAttrMap = const theMap
   }
 
 -- Event handler
-handleEvent :: State -> BrickEvent Name AuthEvent -> EventM Name (Next State)
-handleEvent st (VtyEvent (EvKey KEsc [])) = halt st
-handleEvent st (VtyEvent (EvKey KEnter [])) = do
+handleEvent :: BrickEvent Name AuthEvent -> EventM Name State ()
+handleEvent (VtyEvent (EvKey KEsc [])) = halt
+handleEvent (VtyEvent (EvKey KEnter [])) = do
+  st <- get
   case st ^. currentState of
-    Connecting -> 
+    Connecting ->
       -- If we are already connecting, do nothing.
       pure ()
     Idle ->
       -- Ping the Up server with the AuthInfo
       let aInfo = formState (st ^. form)
        in liftIO $ writeBChan (st ^. reqChan) $ DoPing aInfo
-      
-  continue st
 
-handleEvent st (AppEvent AConnect) = 
-  continue (st & currentState .~ Connecting 
-               & lastAttempt ?~ AConnect)
-handleEvent st (AppEvent ATimeout) = 
-  continue (st & currentState .~ Idle 
-               & lastAttempt ?~ ATimeout)
-handleEvent st (AppEvent ANotAuthorized) = 
-  continue (st & currentState .~ Idle 
-               & lastAttempt ?~ ANotAuthorized)
-handleEvent st (AppEvent AInvalid) = 
-  continue (st & currentState .~ Idle 
-               & lastAttempt ?~ AInvalid)
-handleEvent st (AppEvent (ASuccess a)) = 
-  halt (st & currentState .~ Idle 
-               & lastAttempt ?~ ASuccess a)
+handleEvent (AppEvent AConnect) = do
+  currentState .= Connecting
+  lastAttempt ?= AConnect
+handleEvent (AppEvent ATimeout) = do
+  currentState .= Idle
+  lastAttempt ?= ATimeout
+handleEvent (AppEvent ANotAuthorized) = do
+  currentState .= Idle
+  lastAttempt ?= ANotAuthorized
+handleEvent (AppEvent AInvalid) = do
+  currentState .= Idle
+  lastAttempt ?= AInvalid
+handleEvent (AppEvent (ASuccess a)) = do
+  currentState .= Idle
+  lastAttempt ?= ASuccess a
+  halt
 
-handleEvent st e = do 
-  f' <- handleFormEvent e (st ^. form)
-  continue $ st & form .~ f'
-
+handleEvent e = zoom form $ handleFormEvent e
 theMap :: AttrMap
 theMap = attrMap defAttr
   [ (focusedFormInputAttr, black `on` yellow)
@@ -125,7 +121,7 @@ authWorker requestChan responseChan = forever $ do
         else do
           writeBChan responseChan AInvalid
 
-emptyAuthInfo :: AuthInfo 
+emptyAuthInfo :: AuthInfo
 emptyAuthInfo = AuthInfo { _token = "" }
 
 initialState :: AuthInfo -> BChan AuthRequest -> State
@@ -157,9 +153,9 @@ interactiveAuth vty buildVty tok = do
   pure (st' ^. lastAttempt, vty')
 
 drawAuth :: State -> [Widget Name]
-drawAuth st = 
-  [ center $ hLimit 70 $ vLimit 18 $ border $ 
-    padLeft (Pad 2) $ padRight (Pad 2) $ 
+drawAuth st =
+  [ center $ hLimit 70 $ vLimit 18 $ border $
+    padLeft (Pad 2) $ padRight (Pad 2) $
     vBox [ center $ str "Enter your Up Bank Personal Access Token."
          , vLimit 2 $ fill ' '
          , renderForm (st ^. form)
@@ -171,9 +167,9 @@ drawAuth st =
          , center $ str "Press ESC to exit"
          ]
   ]
-  where 
+  where
     status :: Maybe AuthEvent -> String
-    status Nothing = " " 
+    status Nothing = " "
     status (Just ae) = case ae of
       AConnect -> "Connecting..."
       ANotAuthorized -> "Authentication failed."

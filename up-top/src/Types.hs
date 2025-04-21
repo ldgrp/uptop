@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Types where
 
@@ -6,8 +7,7 @@ import Brick.BChan
 import qualified Brick.Widgets.List as L
 import Data.HashMap.Strict
 import qualified Data.Text as T
-import Lens.Micro
-import Lens.Micro.TH
+import Lens.Micro.Platform
 import Servant.Client (ClientEnv)
 import Up.Model.Account
 import Up.Model.Category
@@ -50,22 +50,22 @@ data Focus = FocusAccounts | FocusTransactions | FocusDetails
 
 data ListZipper a = ListZipper
   { _leftCtx :: [a],
-    _rightCtx :: [a],
-    _focus :: a
+    _focus :: a,
+    _rightCtx :: [a]
   }
   deriving (Show, Ord, Eq)
 
 makeLenses ''ListZipper
 
 focusLeft :: ListZipper a -> ListZipper a
-focusLeft (ListZipper (l : ls) rs x) = ListZipper ls (x : rs) l
-focusLeft (ListZipper [] rs x) = ListZipper ls [x] l
+focusLeft (ListZipper (l : ls) x rs) = ListZipper ls l (x : rs)
+focusLeft (ListZipper []       x rs) = ListZipper ls l [x]
   where
     (l : ls) = reverse rs
 
 focusRight :: ListZipper a -> ListZipper a
-focusRight (ListZipper ls (r : rs) x) = ListZipper (x : ls) rs r
-focusRight (ListZipper ls [] x) = ListZipper [x] rs r
+focusRight (ListZipper ls x (r : rs)) = ListZipper (x : ls) r rs
+focusRight (ListZipper ls x []      ) = ListZipper [x]      r rs
   where
     (r : rs) = reverse ls
 
@@ -83,7 +83,7 @@ makeLenses ''Version
 data Mode = NormalMode | ViewportMode
   deriving (Eq, Ord, Show)
 
-data View
+data Display
   = MainView (ListZipper Focus) Mode
   | HelpView
   deriving (Eq, Ord, Show)
@@ -96,13 +96,13 @@ data Tag
 -- A Screen is a tag and a view
 data Screen = Screen
   { _tag :: Tag,
-    _view :: View
+    _display :: Display
   }
 
 makeLenses ''Screen
 
 mainScreen :: Screen
-mainScreen = Screen MainTag (MainView (ListZipper [] [FocusTransactions] FocusAccounts) NormalMode)
+mainScreen = Screen MainTag (MainView (ListZipper [] FocusAccounts [FocusTransactions]) NormalMode)
 
 helpScreen :: Screen
 helpScreen = Screen HelpTag HelpView
@@ -128,5 +128,5 @@ setMainScreen = setScreen MainTag
 setHelpScreen :: State -> State
 setHelpScreen = setScreen HelpTag
 
-setView :: View -> State -> State
-setView v st = st & (screen . focus . view) .~ v
+setDisplay :: Display -> State -> State
+setDisplay v st = st & (screen . focus . display) .~ v

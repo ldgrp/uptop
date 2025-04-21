@@ -13,6 +13,7 @@ import Data.HashMap.Strict
 import qualified Data.Text as T
 import qualified Data.Vector as Vec
 import Graphics.Vty
+import Graphics.Vty.CrossPlatform
 import Servant.Client
 import System.Environment
 import System.Exit
@@ -89,7 +90,7 @@ initialState env requestChan =
   State
     { _transactions = empty,
       _accounts = L.list AccountList (Vec.fromList []) 1,
-      _screen = ListZipper [helpScreen] [] mainScreen,
+      _screen = ListZipper [helpScreen] mainScreen [],
       _categoryMap = empty,
       _clientEnv = env,
       _reqChan = requestChan,

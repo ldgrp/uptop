@@ -11,7 +11,7 @@ import qualified Brick.Widgets.List as L
 import Common
 import qualified Data.HashMap.Strict as H
 import qualified Data.Text as T
-import Lens.Micro
+import Lens.Micro.Platform
 import Types
 import Up.Model.Account
 import Up.Model.Transaction
