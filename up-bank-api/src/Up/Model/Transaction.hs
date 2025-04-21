@@ -121,8 +121,8 @@ instance FromJSON RoundUp where
   parseJSON = genericParseJSON $ aesonPrefix camelCase
 
 data Cashback = Cashback
-  { cashbackAmount :: MoneyObject,
-    description :: String
+  { cashbackDescription :: T.Text,
+    cashbackAmount :: MoneyObject
   }
   deriving (Eq, Show, Generic)
 

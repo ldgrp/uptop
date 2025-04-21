@@ -20,6 +20,8 @@ data Account = Account
     accountDisplayName :: T.Text,
     -- | The bank account type of this account. See @AccountType@.
     accountAccountType :: AccountType,
+    -- | The ownership structure for this account. See @OwnershipType@.
+    accountOwnershipType :: OwnershipType,
     -- | The available balance of the account, taking into account any amounts that are currently on hold.
     accountBalance :: MoneyObject,
     -- | The date-time at which this account was first opened.
@@ -42,6 +44,7 @@ instance FromJSON Account where
      in Account <$> o .: "id"
           <*> attributes (.: "displayName")
           <*> attributes (.: "accountType")
+          <*> attributes (.: "ownershipType")
           <*> attributes (.: "balance")
           <*> attributes (.: "createdAt")
           <*> transactions (.: "related")
@@ -51,10 +54,23 @@ instance FromJSON Account where
 data AccountType
   = Saver
   | Transactional
+  | HomeLoan
   deriving (Eq, Show, Generic, Enum)
 
 instance ToJSON AccountType where
   toJSON = genericToJSON defaultOptions {constructorTagModifier = fmap C.toUpper}
 
 instance FromJSON AccountType where
+  parseJSON = genericParseJSON defaultOptions {constructorTagModifier = fmap C.toUpper}
+
+-- | Possible ownership structure of an 'Account'.
+data OwnershipType
+  = Individual
+  | Joint
+  deriving (Eq, Show, Generic, Enum)
+
+instance ToJSON OwnershipType where
+  toJSON = genericToJSON defaultOptions {constructorTagModifier = fmap C.toUpper}
+
+instance FromJSON OwnershipType where
   parseJSON = genericParseJSON defaultOptions {constructorTagModifier = fmap C.toUpper}
