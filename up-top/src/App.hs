@@ -16,7 +16,7 @@ app =
     { appDraw = drawUI,
       appChooseCursor = showFirstCursor,
       appHandleEvent = handleEvent,
-      appStartEvent = return,
+      appStartEvent = pure (),
       appAttrMap = const theMap
     }
 

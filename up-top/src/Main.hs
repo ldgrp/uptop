@@ -13,6 +13,7 @@ import Data.HashMap.Strict
 import qualified Data.Text as T
 import qualified Data.Vector as Vec
 import Graphics.Vty
+import qualified Graphics.Vty.CrossPlatform as V
 import Servant.Client
 import System.Environment
 import System.Exit
@@ -24,7 +25,7 @@ import Up.Model.Token
 
 main :: IO ()
 main = do
-  let buildVty = mkVty defaultConfig
+  let buildVty = V.mkVty defaultConfig
   initialVty <- buildVty
 
   -- Read the token environment variable

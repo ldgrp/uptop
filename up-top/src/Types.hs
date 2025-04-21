@@ -3,11 +3,13 @@
 module Types where
 
 import Brick.BChan
+import Brick.Types (EventM)
 import qualified Brick.Widgets.List as L
 import Data.HashMap.Strict
 import qualified Data.Text as T
 import Lens.Micro
 import Lens.Micro.TH
+import Lens.Micro.Mtl ((.=), (%=))
 import Servant.Client (ClientEnv)
 import Up.Model.Account
 import Up.Model.Category
@@ -119,14 +121,17 @@ data State = State
 
 makeLenses ''State
 
-setScreen :: Tag -> State -> State
-setScreen t st = st & screen %~ focusFind ((t ==) . (^. tag))
+-- | Switch to a screen with the specified tag
+switchScreen :: Tag -> EventM Name State ()
+switchScreen t = screen %= focusFind ((t ==) . (^. tag))
 
-setMainScreen :: State -> State
-setMainScreen = setScreen MainTag
+-- | Switch to the main screen
+switchToMainScreen :: EventM Name State ()
+switchToMainScreen = switchScreen MainTag
 
-setHelpScreen :: State -> State
-setHelpScreen = setScreen HelpTag
+-- | Switch to the help screen
+switchToHelpScreen :: EventM Name State ()
+switchToHelpScreen = switchScreen HelpTag
 
-setView :: View -> State -> State
-setView v st = st & (screen . focus . view) .~ v
+setView :: View -> EventM Name State ()
+setView v = screen . focus . view .= v
